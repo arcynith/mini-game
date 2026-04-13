@@ -10,30 +10,30 @@
 
         body {
             font-family: 'Nunito', sans-serif;
-            background-color: #f0fdf4; /* Hijau sangat muda agar fresh */
+            background-color: #f0fdf4; 
         }
 
-        /* Gaya Papan Utama */
+        
         .board-container {
-            background-color: #2563eb; /* Biru terang khas mainan plastik */
+            background-color: #2563eb; 
             border-radius: 12px;
             box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.5), inset 0 4px 6px rgba(255,255,255,0.2);
             padding: 12px;
         }
 
-        /* Gaya untuk Lubang & Koin */
+        
         .cell {
             aspect-ratio: 1 / 1;
             border-radius: 50%;
             position: relative;
             overflow: hidden;
-            /* Default: Lubang kosong */
-            background-color: #1e3a8a; /* Biru sangat gelap (menyerupai lubang tembus pandang) */
+            
+            background-color: #1e3a8a; 
             box-shadow: inset 0px 6px 10px rgba(0, 0, 0, 0.6);
             transition: transform 0.1s ease;
         }
 
-        /* Koin Pemain (Merah & Kuning) menggunakan pseudo-element agar bisa dianimasikan jatuh */
+        
         .cell::before {
             content: '';
             position: absolute;
@@ -44,20 +44,20 @@
         }
 
         .cell.player1::before {
-            background-color: #ef4444; /* Merah */
+            background-color: #ef4444; 
             box-shadow: inset -4px -4px 8px rgba(0,0,0,0.2), inset 4px 4px 8px rgba(255,255,255,0.4);
             opacity: 1;
             transform: translateY(0);
         }
 
         .cell.player2::before {
-            background-color: #eab308; /* Kuning */
+            background-color: #eab308; 
             box-shadow: inset -4px -4px 8px rgba(0,0,0,0.2), inset 4px 4px 8px rgba(255,255,255,0.5);
             opacity: 1;
             transform: translateY(0);
         }
 
-        /* Animasi jatuh (Drop) */
+        
         .cell.drop-anim::before {
             animation: dropPiece 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
         }
@@ -68,7 +68,7 @@
             100% { transform: translateY(0); opacity: 1; }
         }
 
-        /* Gaya Menu Card Terpilih */
+        
         .card-selected {
             border-color: #3b82f6 !important;
             background-color: #eff6ff !important;
@@ -83,7 +83,7 @@
             color: #1d4ed8 !important;
         }
 
-        /* Tombol Kesulitan Terpilih */
+        
         .diff-selected {
             background-color: #10b981 !important;
             color: white !important;
@@ -93,7 +93,7 @@
 </head>
 <body class="text-gray-800 min-h-screen flex items-center justify-center select-none p-4">
 
-    <!-- MAIN MENU -->
+    
     <div id="main-menu" class="w-full max-w-md bg-white p-6 sm:p-8 rounded-2xl shadow-xl">
         <div class="text-center mb-8">
             <h1 class="text-4xl font-extrabold text-blue-700 tracking-tight mb-1">Susun 4</h1>
@@ -101,11 +101,11 @@
         </div>
         
         <div class="space-y-6">
-            <!-- Pilihan Mode -->
+            
             <div>
                 <h2 class="text-sm uppercase tracking-wider font-bold text-gray-400 mb-3">1. Pilih Lawan</h2>
                 <div class="grid grid-cols-2 gap-4">
-                    <!-- Kartu PvP -->
+                    
                     <div id="card-pvp" class="menu-card cursor-pointer border-2 border-gray-200 bg-white rounded-xl p-4 text-center transition hover:border-blue-300 card-selected" onclick="setMode('pvp')">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 mx-auto text-gray-400 mb-2 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
@@ -113,7 +113,7 @@
                         <h3 class="font-bold text-gray-600 transition">Teman</h3>
                         <p class="text-xs text-gray-400 mt-1">2 Pemain 1 HP</p>
                     </div>
-                    <!-- Kartu PvE -->
+                    
                     <div id="card-pve" class="menu-card cursor-pointer border-2 border-gray-200 bg-white rounded-xl p-4 text-center transition hover:border-blue-300" onclick="setMode('pve')">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 mx-auto text-gray-400 mb-2 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -124,7 +124,7 @@
                 </div>
             </div>
 
-            <!-- Pilihan Kesulitan (Hanya muncul jika lawan Komputer) -->
+            
             <div id="difficulty-section" class="hidden opacity-0 transition-opacity duration-300">
                 <h2 class="text-sm uppercase tracking-wider font-bold text-gray-400 mb-3">2. Tingkat Kesulitan</h2>
                 <div class="flex bg-gray-100 p-1 rounded-lg">
@@ -134,7 +134,7 @@
                 </div>
             </div>
 
-            <!-- Tombol Mulai -->
+            
             <button onclick="startGame()" class="w-full bg-blue-600 text-white py-4 rounded-xl font-extrabold text-xl hover:bg-blue-700 hover:shadow-lg transition-all active:scale-95 mt-4 flex items-center justify-center space-x-2">
                 <span>MULAI MAIN</span>
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -144,10 +144,10 @@
         </div>
     </div>
 
-    <!-- GAME SCREEN -->
+    
     <div id="game-screen" class="hidden w-full max-w-md flex-col items-center justify-center">
         
-        <!-- Header / Status Giliran -->
+        
         <div class="w-full bg-white rounded-2xl shadow-sm p-4 mb-4 flex justify-between items-center border-b-4 border-gray-200">
             <div id="status-badge" class="flex items-center space-x-3 bg-red-50 border border-red-200 py-2 px-4 rounded-full transition-colors duration-300">
                 <div id="turn-coin" class="w-5 h-5 rounded-full bg-red-500 shadow-inner"></div>
@@ -161,10 +161,10 @@
             </button>
         </div>
 
-        <!-- Papan Permainan -->
+        
         <div class="board-container w-full cursor-pointer">
             <div id="board" class="grid grid-cols-7 gap-2 sm:gap-3">
-                <!-- Sel-sel di-generate via JavaScript -->
+                
             </div>
         </div>
         
@@ -173,7 +173,7 @@
         </p>
     </div>
 
-    <!-- PAUSE MODAL -->
+    
     <div id="pause-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 z-50 flex items-center justify-center backdrop-blur-sm p-4">
         <div class="bg-white p-6 sm:p-8 rounded-2xl shadow-2xl w-full max-w-sm text-center transform transition-all">
             <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -190,7 +190,7 @@
         </div>
     </div>
 
-    <!-- RESULT MODAL -->
+    
     <div id="result-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 z-50 flex items-center justify-center backdrop-blur-sm p-4">
         <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-sm text-center">
             <h3 class="text-sm font-bold text-gray-400 uppercase tracking-widest mb-2">Permainan Selesai</h3>
@@ -205,12 +205,12 @@
     </div>
 
     <script>
-        /* ================= Konfigurasi & Variabel State ================= */
+        
         const ROWS = 6;
         const COLS = 7;
         const EMPTY = 0;
-        const PLAYER1 = 1; // Merah
-        const PLAYER2 = 2; // Kuning
+        const PLAYER1 = 1;
+        const PLAYER2 = 2;
 
         let board = [];
         let currentPlayer = PLAYER1;
@@ -220,7 +220,7 @@
         let isGameOver = false;
         let isCpuThinking = false;
 
-        /* ================= UI Menu Logic ================= */
+        
         function setMode(mode) {
             gameMode = mode;
             const cardPvP = document.getElementById('card-pvp');
@@ -257,7 +257,7 @@
             });
         }
 
-        /* ================= Logika Utama Game ================= */
+        
         function initBoard() {
             board = Array.from({ length: ROWS }, () => Array(COLS).fill(EMPTY));
         }
@@ -268,7 +268,7 @@
             for (let r = 0; r < ROWS; r++) {
                 for (let c = 0; c < COLS; c++) {
                     const cell = document.createElement('div');
-                    cell.classList.add('cell'); // Sel kosong (biru gelap)
+                    cell.classList.add('cell');
                     cell.dataset.row = r;
                     cell.dataset.col = c;
                     cell.addEventListener('click', () => handlePlayerMove(c));
@@ -294,10 +294,10 @@
 
         function updateBoardUI(r, c, player) {
             const sel = document.querySelector(`.cell[data-row='${r}'][data-col='${c}']`);
-            // Tambahkan class player dan animasi drop
+
             sel.classList.add(player === PLAYER1 ? 'player1' : 'player2', 'drop-anim');
             
-            // Hapus class drop-anim setelah animasi selesai agar tidak berulang jika di-resize
+
             setTimeout(() => {
                 sel.classList.remove('drop-anim');
             }, 500);
@@ -316,14 +316,14 @@
             if (isGameOver || isPaused || isCpuThinking) return;
 
             const row = getValidRow(board, col);
-            if (row === -1) return; // Kolom penuh
+            if (row === -1) return;
 
-            // Eksekusi jalan
+
             board[row][col] = currentPlayer;
             updateBoardUI(row, col, currentPlayer);
 
             if (checkWin(board, currentPlayer)) {
-                setTimeout(() => handleGameOver(currentPlayer), 500); // Tunggu animasi jatuh selesai
+                setTimeout(() => handleGameOver(currentPlayer), 500);
                 return;
             }
 
@@ -332,16 +332,16 @@
                 return;
             }
 
-            // Ganti giliran
+
             currentPlayer = currentPlayer === PLAYER1 ? PLAYER2 : PLAYER1;
             updateStatus();
 
-            // Jika mode PvE dan giliran CPU
+
             if (gameMode === 'pve' && currentPlayer === PLAYER2) {
                 isCpuThinking = true;
                 updateStatusText("Komputer berpikir...");
                 
-                // Jeda agar terlihat sedang "berpikir"
+
                 setTimeout(() => {
                     makeCpuMove();
                 }, 600);
@@ -367,7 +367,7 @@
                 col = minimax(board, 6, -Infinity, Infinity, true)[0];
             }
 
-            // Fallback
+
             if (col === -1 || getValidRow(board, col) === -1) {
                 for(let c=0; c<COLS; c++) {
                     if(getValidRow(board, c) !== -1){ col = c; break; }
@@ -415,7 +415,7 @@
             document.getElementById('status-text').innerText = msg;
         }
 
-        /* ================= Sistem Pause & Navigasi ================= */
+        
         function pauseGame() {
             if (isGameOver) return;
             isPaused = true;
@@ -451,7 +451,7 @@
             const winnerText = document.getElementById('winner-text');
             const winnerIcon = document.getElementById('winner-icon');
             
-            // Reset class
+
             winnerIcon.className = 'w-24 h-24 mx-auto rounded-full mb-4 shadow-inner border-4 border-white ring-4 ring-gray-100'; 
             
             if (winner === PLAYER1) {
@@ -469,30 +469,30 @@
             }
         }
 
-        /* ================= Pengecekan Kemenangan ================= */
+        
         function checkWin(currentBoard, piece) {
-            // Cek Horizontal
+
             for (let c = 0; c < COLS - 3; c++) {
                 for (let r = 0; r < ROWS; r++) {
                     if (currentBoard[r][c] == piece && currentBoard[r][c+1] == piece && 
                         currentBoard[r][c+2] == piece && currentBoard[r][c+3] == piece) return true;
                 }
             }
-            // Cek Vertikal
+
             for (let c = 0; c < COLS; c++) {
                 for (let r = 0; r < ROWS - 3; r++) {
                     if (currentBoard[r][c] == piece && currentBoard[r+1][c] == piece && 
                         currentBoard[r+2][c] == piece && currentBoard[r+3][c] == piece) return true;
                 }
             }
-            // Diagonal Positif
+
             for (let c = 0; c < COLS - 3; c++) {
                 for (let r = 0; r < ROWS - 3; r++) {
                     if (currentBoard[r][c] == piece && currentBoard[r+1][c+1] == piece && 
                         currentBoard[r+2][c+2] == piece && currentBoard[r+3][c+3] == piece) return true;
                 }
             }
-            // Diagonal Negatif
+
             for (let c = 0; c < COLS - 3; c++) {
                 for (let r = 3; r < ROWS; r++) {
                     if (currentBoard[r][c] == piece && currentBoard[r-1][c+1] == piece && 
@@ -509,7 +509,7 @@
             return true;
         }
 
-        /* ================= AI (Minimax & Heuristic) ================= */
+        
         function copyBoard(currentBoard) { return currentBoard.map(row => [...row]); }
         function getValidLocations(currentBoard) {
             let valid = [];

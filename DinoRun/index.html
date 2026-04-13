@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Dino Run Klasik</title>
-    <!-- Menggunakan font retro untuk kesan klasik -->
+    
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <style>
-        /* Gaya dasar - Murni minimalis, tanpa efek AI/Glow/Shadow */
+        
         body {
             margin: 0;
             padding: 0;
@@ -19,7 +19,7 @@
             align-items: center;
             height: 100vh;
             overflow: hidden;
-            touch-action: none; /* Mencegah pull-to-refresh di mobile */
+            touch-action: none; 
         }
 
         #game-container {
@@ -34,12 +34,12 @@
             width: 100%;
             height: 100%;
             background-color: #f7f7f7;
-            /* Garis bawah sebagai batas ground */
+            
             border-bottom: 2px solid #535353; 
             image-rendering: pixelated;
         }
 
-        /* Overlay UI untuk Menu, Pause, dan Game Over */
+        
         .ui-layer {
             position: absolute;
             top: 0;
@@ -50,7 +50,7 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            background: rgba(247, 247, 247, 0.85); /* Solid overlay, bukan glassmorphism */
+            background: rgba(247, 247, 247, 0.85); 
             z-index: 10;
         }
 
@@ -71,7 +71,7 @@
             .retro-btn { font-size: 10px !important; padding: 8px 12px !important; }
         }
 
-        /* Desain Tombol Retro Klasik - Kotak, border tegas, tanpa radius atau efek */
+        
         .retro-btn {
             background-color: #f7f7f7;
             border: 2px solid #535353;
@@ -82,7 +82,7 @@
             font-size: 12px;
             cursor: pointer;
             text-transform: uppercase;
-            transition: none; /* Tidak ada animasi halus */
+            transition: none; 
         }
 
         .retro-btn:hover, .retro-btn:active {
@@ -104,7 +104,7 @@
             margin-bottom: 20px;
         }
 
-        /* Tombol Pause di pojok layar saat bermain */
+        
         #btn-pause-ingame {
             position: absolute;
             top: 10px;
@@ -119,7 +119,7 @@
             z-index: 5;
         }
 
-        /* Area UI untuk Score */
+        
         #score-board {
             position: absolute;
             top: 15px;
@@ -152,7 +152,7 @@
 
     <canvas id="gameCanvas" width="800" height="300"></canvas>
 
-    <!-- Layar Menu Utama -->
+    
     <div id="menu-screen" class="ui-layer">
         <div class="title">DINO LARI</div>
         <div style="font-size: 10px; margin-bottom: 10px;">Pilih Kesulitan:</div>
@@ -170,14 +170,14 @@
         </div>
     </div>
 
-    <!-- Layar Pause -->
+    
     <div id="pause-screen" class="ui-layer hidden">
         <div class="title">DIPAUSE</div>
         <button id="btn-resume" class="retro-btn">Lanjutkan</button>
         <button id="btn-quit-pause" class="retro-btn">Menu Utama</button>
     </div>
 
-    <!-- Layar Game Over -->
+    
     <div id="gameover-screen" class="ui-layer hidden">
         <div class="title">GAME OVER</div>
         <div style="margin-bottom: 20px; font-size: 14px;">Skor: <span id="final-score">0</span></div>
@@ -187,7 +187,7 @@
 </div>
 
 <script>
-    // --- KONFIGURASI DAN SETUP ---
+
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     
@@ -204,9 +204,9 @@
     let score = 0;
     let highScore = 0; 
     let gameSpeed = 5;
-    let minSpawnDist = 200; // Jarak minimal antar rintangan agar adil
+    let minSpawnDist = 200;
     
-    // Konfigurasi Kesulitan (Spawn rate diatur ulang agar tidak saling tumpuk)
+
     const difficulties = {
         easy: { baseSpeed: 5, speedInc: 0.001, spawnMin: 100, spawnMax: 180 },
         normal: { baseSpeed: 6.5, speedInc: 0.0015, spawnMin: 80, spawnMax: 150 },
@@ -230,7 +230,7 @@
     let clouds = [];
     let groundParticles = [];
 
-    // --- CLASS OBJEK GAME ---
+
 
     const dino = {
         x: 50,
@@ -240,8 +240,8 @@
         duckW: 59,
         duckH: 30,
         vy: 0,
-        gravity: 1.1,      // Fisika diperberat agar lompatan lebih responsif
-        jumpPower: -15,    // Daya tolak lompatan
+        gravity: 1.1,
+        jumpPower: -15,
         isJumping: false,
         isDucking: false,
         legFrame: 0,
@@ -251,42 +251,42 @@
             let drawY = this.y - (this.isDucking ? this.duckH : this.h);
             
             if (this.isDucking) {
-                // Gambar Dino Nunduk (Lebih Detail)
-                // Badan utama nunduk
+
+
                 ctx.fillRect(this.x, drawY + 10, 30, 16); 
-                // Kepala nunduk depan
+
                 ctx.fillRect(this.x + 30, drawY + 8, 25, 14); 
-                // Mulut/Moncong
+
                 ctx.fillRect(this.x + 35, drawY + 22, 15, 6);
-                // Mata nunduk
+
                 ctx.fillStyle = COLOR_BG;
                 ctx.fillRect(this.x + 42, drawY + 10, 4, 4);
                 ctx.fillStyle = COLOR_SPRITE;
-                // Ekor nunduk
+
                 ctx.fillRect(this.x - 10, drawY + 10, 10, 10);
                 ctx.fillRect(this.x - 15, drawY + 5, 5, 5);
 
             } else {
-                // Gambar Dino Berdiri (Lebih Detail)
-                // Badan
+
+
                 ctx.fillRect(this.x + 10, drawY + 15, 18, 22); 
-                // Leher & Kepala
+
                 ctx.fillRect(this.x + 20, drawY, 20, 16);
-                // Mulut
+
                 ctx.fillRect(this.x + 24, drawY + 16, 12, 6);
-                // Mata (Titik putih)
+
                 ctx.fillStyle = COLOR_BG;
                 ctx.fillRect(this.x + 28, drawY + 3, 4, 4);
                 ctx.fillStyle = COLOR_SPRITE;
-                // Tangan kecil
+
                 ctx.fillRect(this.x + 28, drawY + 20, 8, 4);
-                // Ekor
+
                 ctx.fillRect(this.x, drawY + 25, 10, 12);
                 ctx.fillRect(this.x - 5, drawY + 20, 8, 8);
                 ctx.fillRect(this.x - 8, drawY + 15, 4, 5);
             }
 
-            // Animasi Kaki
+
             let legY = this.y - 10;
             if (!this.isJumping && gameState === 'PLAYING') {
                 if (frames % 12 < 6) this.legFrame = 0;
@@ -295,22 +295,22 @@
                 this.legFrame = 2; 
             }
 
-            // Kaki Berdiri / Nunduk
+
             let legXOffset = this.isDucking ? 5 : 0;
             if (this.legFrame === 0) {
-                // Kaki Kiri Naik
+
                 ctx.fillRect(this.x + 12 + legXOffset, legY, 6, 5); 
-                // Kaki Kanan Turun
+
                 ctx.fillRect(this.x + 22 + legXOffset, legY, 6, 10); 
-                ctx.fillRect(this.x + 24 + legXOffset, legY + 8, 6, 4); // telapak
+                ctx.fillRect(this.x + 24 + legXOffset, legY + 8, 6, 4);
             } else if (this.legFrame === 1) {
-                // Kaki Kiri Turun
+
                 ctx.fillRect(this.x + 12 + legXOffset, legY, 6, 10); 
-                ctx.fillRect(this.x + 14 + legXOffset, legY + 8, 6, 4); // telapak
-                // Kaki Kanan Naik
+                ctx.fillRect(this.x + 14 + legXOffset, legY + 8, 6, 4);
+
                 ctx.fillRect(this.x + 22 + legXOffset, legY, 6, 5); 
             } else {
-                // Di udara (kedua kaki agak ditekuk)
+
                 ctx.fillRect(this.x + 12 + legXOffset, legY, 6, 5);
                 ctx.fillRect(this.x + 22 + legXOffset, legY, 6, 5);
             }
@@ -337,7 +337,7 @@
             }
         },
         
-        // Fitur Short Hop: Potong kecepatan ke atas jika tombol dilepas
+
         stopJump() {
             if (this.isJumping && this.vy < -6) {
                 this.vy = -6; 
@@ -346,18 +346,18 @@
 
         duck(state) {
             if (this.isJumping) {
-                if (state) this.vy += 6; // Fast fall lebih kuat
+                if (state) this.vy += 6;
             }
             this.isDucking = state;
         },
 
         getHitbox() {
-            // HITBOX DIPERKECIL AGAR LEBIH ADIL (Toleransi tinggi)
+
             let drawY = this.y - (this.isDucking ? this.duckH : this.h);
             let drawH = this.isDucking ? this.duckH : this.h;
             let drawW = this.isDucking ? this.duckW : this.w;
             
-            // Hitbox hanya memakan area inti badan dino (kepala, perut)
+
             return {
                 x: this.x + 15, 
                 y: drawY + 10, 
@@ -374,20 +374,20 @@
             this.markedForDeletion = false;
             
             if (this.type === 'cactus') {
-                // Variasi kaktus: Kecil (1), Sedang (2), Besar berjejer (3)
+
                 let rand = Math.random();
                 if (rand < 0.33) {
-                    this.w = 15; this.h = 35; // Kecil
+                    this.w = 15; this.h = 35;
                 } else if (rand < 0.66) {
-                    this.w = 25; this.h = 50; // Sedang
+                    this.w = 25; this.h = 50;
                 } else {
-                    this.w = 50; this.h = 45; // Kumpulan kaktus
+                    this.w = 50; this.h = 45;
                 }
                 this.y = GROUND_Y;
             } else { 
                 this.w = 46;
                 this.h = 30;
-                // Tinggi burung (bisa dilompati atau nunduk)
+
                 let heights = [GROUND_Y - 25, GROUND_Y - 55, GROUND_Y - 85];
                 this.y = heights[Math.floor(Math.random() * heights.length)];
                 this.wingUp = false;
@@ -409,45 +409,45 @@
             ctx.fillStyle = COLOR_SPRITE;
             if (this.type === 'cactus') {
                 let yPos = this.y - this.h;
-                // Gambar batang utama
+
                 ctx.fillRect(this.x + this.w/2 - 6, yPos, 12, this.h); 
                 
-                // Tambah cabang agar terlihat lebih detail
+
                 if (this.w > 20) {
-                    // Cabang kiri
-                    ctx.fillRect(this.x + this.w/2 - 16, yPos + 15, 10, 6); // konektor
-                    ctx.fillRect(this.x + this.w/2 - 18, yPos + 5, 8, 16);  // tiang kiri
-                    // Cabang kanan
-                    ctx.fillRect(this.x + this.w/2 + 6, yPos + 25, 10, 6);  // konektor
-                    ctx.fillRect(this.x + this.w/2 + 10, yPos + 10, 8, 21); // tiang kanan
+
+                    ctx.fillRect(this.x + this.w/2 - 16, yPos + 15, 10, 6);
+                    ctx.fillRect(this.x + this.w/2 - 18, yPos + 5, 8, 16);
+
+                    ctx.fillRect(this.x + this.w/2 + 6, yPos + 25, 10, 6);
+                    ctx.fillRect(this.x + this.w/2 + 10, yPos + 10, 8, 21);
                 }
-                // Jika kaktus lebar (kumpulan)
+
                 if (this.w > 40) {
                     ctx.fillRect(this.x + 5, yPos + 10, 10, this.h - 10);
                     ctx.fillRect(this.x + this.w - 15, yPos + 15, 12, this.h - 15);
                 }
             } else {
-                // Gambar Pterodactyl (Lebih Detail)
+
                 let yPos = this.y - this.h;
-                // Badan
+
                 ctx.fillRect(this.x + 15, yPos + 12, 18, 8); 
-                // Kepala & Paruh
+
                 ctx.fillRect(this.x, yPos + 8, 15, 6);
-                ctx.fillRect(this.x + 10, yPos + 4, 8, 6); // tonjolan kepala belakang
+                ctx.fillRect(this.x + 10, yPos + 4, 8, 6);
                 
-                // Sayap animasi
+
                 if (this.wingUp) {
-                    ctx.fillRect(this.x + 18, yPos - 2, 14, 14); // Sayap atas naik
-                    ctx.fillRect(this.x + 22, yPos - 8, 8, 6);   // Ujung sayap
+                    ctx.fillRect(this.x + 18, yPos - 2, 14, 14);
+                    ctx.fillRect(this.x + 22, yPos - 8, 8, 6);
                 } else {
-                    ctx.fillRect(this.x + 18, yPos + 20, 14, 12); // Sayap bawah turun
-                    ctx.fillRect(this.x + 22, yPos + 32, 8, 4);   // Ujung sayap
+                    ctx.fillRect(this.x + 18, yPos + 20, 14, 12);
+                    ctx.fillRect(this.x + 22, yPos + 32, 8, 4);
                 }
             }
         }
 
         getHitbox() {
-            // Hitbox rintangan juga diperkecil agar sangat adil
+
             let yPos = this.y - this.h;
             return {
                 x: this.x + 8,
@@ -495,7 +495,7 @@
         }
     }
 
-    // --- LOGIKA GAME ---
+
 
     function resetGame() {
         obstacles = [];
@@ -520,17 +520,17 @@
     }
 
     function spawnEntities() {
-        // Logika Spawn Rintangan yang lebih cerdas (mencegah mustahil dilompati)
+
         if (frames > 60) {
             let lastObstacle = obstacles[obstacles.length - 1];
             let distToLast = lastObstacle ? (GAME_WIDTH - lastObstacle.x) : 9999;
 
-            // Spawn baru hanya jika rintangan terakhir sudah cukup jauh
+
             if (distToLast > minSpawnDist) {
                 let spawnRate = Math.floor(Math.random() * (conf.spawnMax - conf.spawnMin + 1)) + conf.spawnMin;
                 if (frames % spawnRate === 0) {
                     obstacles.push(new Obstacle());
-                    // Jarak minimal disesuaikan dengan kecepatan game
+
                     minSpawnDist = 200 + (gameSpeed * 10); 
                 }
             }
@@ -543,15 +543,15 @@
     function checkCollisions() {
         let dBox = dino.getHitbox();
         
-        // Uncomment baris di bawah ini untuk DEBUG Hitbox (akan terlihat kotak merah)
-        // ctx.fillStyle = 'rgba(255,0,0,0.4)'; ctx.fillRect(dBox.x, dBox.y, dBox.w, dBox.h);
+
+
         
         for (let obs of obstacles) {
             let oBox = obs.getHitbox();
-            // DEBUG Hitbox rintangan
-            // ctx.fillStyle = 'rgba(0,0,255,0.4)'; ctx.fillRect(oBox.x, oBox.y, oBox.w, oBox.h);
+
+
             
-            // AABB Collision Detection
+
             if (dBox.x < oBox.x + oBox.w &&
                 dBox.x + dBox.w > oBox.x &&
                 dBox.y < oBox.y + oBox.h &&
@@ -570,13 +570,13 @@
         txtCurrentScore.innerText = displayScore;
         txtHiScore.innerText = formatScore(highScore);
         
-        // Efek kedip setiap kelipatan 100
+
         if (score > 0 && score % 100 === 0) {
             containerCurrentScore.classList.add('score-blink');
             setTimeout(() => {
                 containerCurrentScore.classList.remove('score-blink');
             }, 2000);
-            gameSpeed += 0.5; // Lonjakan kecepatan saat tembus 100
+            gameSpeed += 0.5;
         }
     }
 
@@ -598,7 +598,7 @@
         clouds.forEach(c => { c.update(); c.draw(); });
         clouds = clouds.filter(c => !c.markedForDeletion);
 
-        // Gambar Garis Tanah
+
         ctx.fillStyle = COLOR_SPRITE;
         ctx.fillRect(0, GROUND_Y, GAME_WIDTH, 2);
         groundParticles.forEach(p => { p.update(); p.draw(); });
@@ -617,7 +617,7 @@
         }
     }
 
-    // --- STATE MANAGEMENT ---
+
 
     function startGame() {
         gameState = 'PLAYING';
@@ -670,7 +670,7 @@
     }
 
 
-    // --- KONTROL INPUT ---
+
 
     window.addEventListener('keydown', (e) => {
         if (e.code === 'Space' || e.code === 'ArrowUp') {
@@ -687,13 +687,13 @@
 
     window.addEventListener('keyup', (e) => {
         if (e.code === 'Space' || e.code === 'ArrowUp') {
-            if (gameState === 'PLAYING') dino.stopJump(); // Memicu short hop saat dilepas
+            if (gameState === 'PLAYING') dino.stopJump();
         } else if (e.code === 'ArrowDown') {
             if (gameState === 'PLAYING') dino.duck(false);
         }
     });
 
-    // Touch Controller (Ditingkatkan)
+
     let touchStartY = 0;
     let isSwiping = false;
     
@@ -702,7 +702,7 @@
         e.preventDefault();
         touchStartY = e.touches[0].clientY;
         isSwiping = false;
-        dino.jump(); // Langsung lompat saat disentuh
+        dino.jump();
     }, {passive: false});
 
     canvas.addEventListener('touchmove', (e) => {
@@ -710,7 +710,7 @@
         let touchCurrentY = e.touches[0].clientY;
         if (touchCurrentY - touchStartY > 30) {
             isSwiping = true;
-            dino.duck(true); // Mulai nunduk jika mendeteksi swipe ke bawah
+            dino.duck(true);
         }
     }, {passive: false});
 
@@ -718,17 +718,17 @@
         if (gameState !== 'PLAYING') return;
         e.preventDefault();
         
-        dino.stopJump(); // Potong lompatan jika tap dilepas cepat (short hop)
+        dino.stopJump();
         
         if (isSwiping) {
-            // Beri sedikit jeda agar nunduk terasa efektif
+
             setTimeout(() => { dino.duck(false); }, 150); 
         } else {
             dino.duck(false);
         }
     }, {passive: false});
 
-    // --- EVENT LISTENERS UI ---
+
 
     diffBtns.forEach(btn => {
         btn.addEventListener('click', () => {

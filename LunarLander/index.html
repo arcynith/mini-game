@@ -6,13 +6,13 @@
     <title>Lunar Lander Klasik</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Mencegah default touch actions seperti pull-to-refresh atau pinch-zoom di mobile */
+        
         body {
             touch-action: none;
             overflow: hidden;
-            background-color: #050505; /* Hitam pekat, bukan biru neon */
+            background-color: #050505; 
             color: #eeeeee;
-            font-family: 'Courier New', Courier, monospace; /* Font gaya retro/terminal */
+            font-family: 'Courier New', Courier, monospace; 
         }
         
         #gameCanvas {
@@ -22,7 +22,7 @@
             background-color: #050505;
         }
 
-        /* UI Overlays */
+        
         .overlay {
             position: absolute;
             top: 0;
@@ -33,7 +33,7 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            background-color: rgba(5, 5, 5, 0.85); /* Solid flat overlay, no blur/glow */
+            background-color: rgba(5, 5, 5, 0.85); 
             z-index: 10;
         }
 
@@ -64,14 +64,14 @@
             border-color: #aaaaaa;
         }
 
-        /* Mobile Controls */
+        
         #mobileControls {
             position: absolute;
             bottom: 20px;
             left: 0;
             width: 100%;
             height: 120px;
-            display: none; /* Akan dimunculkan via JS jika device touch */
+            display: none; 
             pointer-events: none;
             z-index: 5;
             padding: 0 20px;
@@ -111,7 +111,7 @@
         .hud-danger { color: #ff5555; }
         .hud-safe { color: #55ff55; }
 
-        /* Pause Button (Top Right) */
+        
         #pauseBtn {
             position: absolute;
             top: 20px;
@@ -124,7 +124,7 @@
 </head>
 <body>
 
-    <!-- HUD (Heads Up Display) -->
+    
     <div id="hud" class="hidden">
         <div>SKOR   : <span id="hudScore" class="hud-value">0</span></div>
         <div>BAHAN BAKAR: <span id="hudFuel" class="hud-value">100</span></div>
@@ -135,7 +135,7 @@
 
     <button id="pauseBtn" class="btn hidden">JEDA</button>
 
-    <!-- Main Menu Overlay -->
+    
     <div id="mainMenu" class="overlay">
         <h1 class="text-4xl md:text-6xl font-bold mb-2 tracking-widest">LUNAR LANDER</h1>
         <p class="mb-8 text-gray-400">Mendaratlah di landasan (garis tebal) dengan hati-hati.</p>
@@ -154,7 +154,7 @@
         </div>
     </div>
 
-    <!-- Pause Menu Overlay -->
+    
     <div id="pauseMenu" class="overlay hidden">
         <h2 class="text-4xl font-bold mb-8">DIJEDA</h2>
         <button id="resumeBtn" class="btn text-xl mb-4">LANJUTKAN</button>
@@ -162,7 +162,7 @@
         <button id="quitBtn" class="btn text-xl">KEMBALI KE MENU</button>
     </div>
 
-    <!-- Game Over / Success Overlay -->
+    
     <div id="endMenu" class="overlay hidden">
         <h2 id="endTitle" class="text-5xl font-bold mb-4"></h2>
         <p id="endMessage" class="text-xl mb-8"></p>
@@ -171,7 +171,7 @@
         <button id="restartEndBtn" class="btn text-xl">ULANGI MISI</button>
     </div>
 
-    <!-- Mobile Touch Controls -->
+    
     <div id="mobileControls" class="flex justify-between items-end">
         <div class="flex gap-4">
             <div id="btnLeft" class="touch-btn">&#8634;</div>
@@ -185,30 +185,28 @@
     <canvas id="gameCanvas"></canvas>
 
     <script>
-        /** * LUNAR LANDER ENGINE 
-         * Menggunakan gaya flat/vektor, tidak ada efek blur/glow.
-         */
+        
 
-        // --- SISTEM DAN VARIABEL GLOBAL ---
+
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         
-        // State Game
+
         const STATE = { MENU: 0, PLAYING: 1, PAUSED: 2, GAMEOVER: 3, SUCCESS: 4, COUNTDOWN: 5 };
         let currentState = STATE.MENU;
         let animationFrameId;
         let countdownTimer;
         let countdownValue = 3;
         
-        // Input
+
         const keys = { ArrowUp: false, ArrowLeft: false, ArrowRight: false };
         const touch = { thrust: false, left: false, right: false };
 
-        // Statistik
+
         let score = 0;
         let level = 1;
 
-        // --- KONFIGURASI TINGKAT KESULITAN ---
+
         const difficulties = {
             easy: { gravity: 0.015, fuel: 800, thrustPower: 0.05, maxVSpd: 2.5, maxHSpd: 2.0, maxAngle: 0.25, padWidth: 80 },
             normal: { gravity: 0.025, fuel: 500, thrustPower: 0.06, maxVSpd: 1.5, maxHSpd: 1.0, maxAngle: 0.15, padWidth: 50 },
@@ -217,7 +215,7 @@
         let currentDiff = 'normal';
         let config = difficulties[currentDiff];
 
-        // --- ENTITAS GAME ---
+
         let lander = null;
         let terrain = [];
         let particles = [];
@@ -240,7 +238,7 @@
             draw(ctx) {
                 if (this.life <= 0) return;
                 const alpha = this.life / this.maxLife;
-                ctx.fillStyle = `rgba(200, 200, 200, ${alpha})`; // Abu-abu solid, no glow
+                ctx.fillStyle = `rgba(200, 200, 200, ${alpha})`;
                 ctx.fillRect(this.x, this.y, 2, 2);
             }
         }
@@ -251,7 +249,7 @@
                 this.y = y;
                 this.vx = 0;
                 this.vy = 0;
-                this.angle = 0; // Radian, 0 = menghadap ke atas
+                this.angle = 0;
                 this.width = 16;
                 this.height = 20;
                 this.fuel = config.fuel;
@@ -263,16 +261,16 @@
             update() {
                 if (this.crashed || this.landed) return;
 
-                // Fisika Rotasi
+
                 const rotSpeed = 0.05;
                 if (keys.ArrowLeft || touch.left) this.angle -= rotSpeed;
                 if (keys.ArrowRight || touch.right) this.angle += rotSpeed;
 
-                // Batasi sudut agar tidak berputar lebih dari 180 derajat murni untuk tampilan angka
+
                 if (this.angle > Math.PI) this.angle -= Math.PI * 2;
                 if (this.angle < -Math.PI) this.angle += Math.PI * 2;
 
-                // Fisika Dorongan (Thrust)
+
                 this.isThrusting = (keys.ArrowUp || touch.thrust) && this.fuel > 0;
                 
                 if (this.isThrusting) {
@@ -280,7 +278,7 @@
                     this.vy -= Math.cos(this.angle) * config.thrustPower;
                     this.fuel -= 1;
 
-                    // Buat partikel api
+
                     if (Math.random() > 0.3) {
                         const nozzleX = this.x - Math.sin(this.angle) * (this.height/2);
                         const nozzleY = this.y + Math.cos(this.angle) * (this.height/2);
@@ -290,17 +288,17 @@
                     }
                 }
 
-                // Gravitasi
+
                 this.vy += config.gravity;
 
-                // Update Posisi
+
                 this.x += this.vx;
                 this.y += this.vy;
 
-                // Batas layar (wrap around untuk X)
+
                 if (this.x < 0) this.x = canvas.width;
                 if (this.x > canvas.width) this.x = 0;
-                if (this.y < -50) this.vy = 0; // Jangan biarkan terbang terlalu tinggi tanpa batas
+                if (this.y < -50) this.vy = 0;
 
                 this.checkCollision();
             }
@@ -310,12 +308,12 @@
                 ctx.translate(this.x, this.y);
                 ctx.rotate(this.angle);
 
-                // Menggambar Kapal (Garis solid, vektor, tanpa fill mencolok)
+
                 ctx.strokeStyle = '#ffffff';
                 ctx.lineWidth = 1.5;
                 ctx.beginPath();
                 
-                // Badan utama (Kapsul/segitiga terpotong)
+
                 ctx.moveTo(-8, 6);
                 ctx.lineTo(-6, -6);
                 ctx.lineTo(0, -10);
@@ -324,20 +322,20 @@
                 ctx.closePath();
                 ctx.stroke();
 
-                // Kaki Pendarat
+
                 ctx.beginPath();
                 ctx.moveTo(-8, 6);
                 ctx.lineTo(-12, 12);
                 ctx.moveTo(-14, 12);
-                ctx.lineTo(-10, 12); // Tapak kaki kiri
+                ctx.lineTo(-10, 12);
                 
                 ctx.moveTo(8, 6);
                 ctx.lineTo(12, 12);
                 ctx.moveTo(10, 12);
-                ctx.lineTo(14, 12); // Tapak kaki kanan
+                ctx.lineTo(14, 12);
                 ctx.stroke();
 
-                // Garis bawah badan (Nozzle referensi)
+
                 ctx.beginPath();
                 ctx.moveTo(-4, 6);
                 ctx.lineTo(4, 6);
@@ -345,12 +343,12 @@
                 ctx.closePath();
                 ctx.stroke();
 
-                // Jika thrusting, gambar api (vektor sederhana, tidak glow)
+
                 if (this.isThrusting && !this.crashed && !this.landed) {
-                    ctx.strokeStyle = '#ff5555'; // Merah solid
+                    ctx.strokeStyle = '#ff5555';
                     ctx.beginPath();
                     ctx.moveTo(-3, 9);
-                    ctx.lineTo(0, 15 + Math.random() * 8); // Berkedip secara geometris
+                    ctx.lineTo(0, 15 + Math.random() * 8);
                     ctx.lineTo(3, 9);
                     ctx.stroke();
                 }
@@ -359,23 +357,23 @@
             }
 
             checkCollision() {
-                // Cari segmen terrain di bawah kapal (berdasarkan X kapal)
+
                 for (let i = 0; i < terrain.length - 1; i++) {
                     const p1 = terrain[i];
                     const p2 = terrain[i+1];
 
-                    // Apakah titik X kapal berada di antara titik p1 dan p2?
-                    // (Mengatasi wrap around: kapal dipecah jadi titik tengah saja untuk kesederhanaan logika retro)
+
+
                     if (this.x >= p1.x && this.x <= p2.x) {
-                        // Interpolasi linier untuk mencari ketinggian tanah tepat di bawah kapal Y(x)
+
                         const t = (this.x - p1.x) / (p2.x - p1.x);
                         const groundY = p1.y + t * (p2.y - p1.y);
 
-                        // Titik terendah kapal (kaki)
+
                         const bottomY = this.y + 12;
 
                         if (bottomY >= groundY) {
-                            this.y = groundY - 12; // Snap ke tanah
+                            this.y = groundY - 12;
                             this.evaluateLanding(p1, p2);
                             break;
                         }
@@ -384,19 +382,19 @@
             }
 
             evaluateLanding(p1, p2) {
-                // Kriteria Pendaratan Sukses:
-                // 1. Mendarat di area Pad (isPad = true)
-                // 2. Kecepatan Vertikal aman
-                // 3. Kecepatan Horizontal aman
-                // 4. Kapal tegak lurus (Angle kecil)
+
+
+
+
+
                 
                 const isPad = p1.isPad && p2.isPad && (p1.y === p2.y);
                 const safeVSpd = Math.abs(this.vy) <= config.maxVSpd;
                 const safeHSpd = Math.abs(this.vx) <= config.maxHSpd;
                 const safeAngle = Math.abs(this.angle) <= config.maxAngle;
 
-                // Mengecek apakah 100% badan kapal (lebar kaki) berada di dalam batas pad
-                // Kaki terentang dari x-12 hingga x+12
+
+
                 const insidePadBounds = (this.x - 12 >= p1.x) && (this.x + 12 <= p2.x);
 
                 if (isPad && safeVSpd && safeHSpd && safeAngle && insidePadBounds) {
@@ -435,21 +433,21 @@
             }
         }
 
-        // --- GENERATOR LINGKUNGAN ---
+
         function generateTerrain() {
             terrain = [];
             const width = canvas.width;
             const height = canvas.height;
             
-            // Konfigurasi dasar
+
             let x = 0;
             let y = height - (Math.random() * 100 + 50);
             
-            // Jumlah pad bergantung kesulitan
+
             const padCount = currentDiff === 'hard' ? 2 : (currentDiff === 'normal' ? 3 : 4);
             const padLocations = [];
             
-            // Tentukan x lokasi pad secara acak tapi menyebar
+
             const segment = width / padCount;
             for(let i=0; i<padCount; i++) {
                 padLocations.push(segment * i + segment*0.2 + Math.random()*(segment*0.6));
@@ -459,25 +457,25 @@
 
             let currentPad = 0;
             while (x < width) {
-                // Cek apakah dekat dengan lokasi pad yang direncanakan
+
                 if (currentPad < padLocations.length && x > padLocations[currentPad] - config.padWidth) {
-                    // Buat Pad datar
+
                     const padX1 = x;
                     const padX2 = padX1 + config.padWidth;
-                    // Pad height
+
                     y = height - (Math.random() * 100 + 50); 
                     
-                    terrain.push({x: padX1, y: y, isPad: true, multiplier: 1}); // Multiplier bisa disesuaikan nanti
+                    terrain.push({x: padX1, y: y, isPad: true, multiplier: 1});
                     terrain.push({x: padX2, y: y, isPad: true, multiplier: 1});
                     
                     x = padX2;
                     currentPad++;
                 } else {
-                    // Gunung acak
+
                     x += Math.random() * 40 + 10;
                     if (x > width) x = width;
                     
-                    // Batasan ekstremitas gunung
+
                     y += (Math.random() - 0.5) * 100;
                     if (y > height - 20) y = height - 20;
                     if (y < height / 2) y = height / 2;
@@ -486,7 +484,7 @@
                 }
             }
 
-            // Pastikan titik terakhir tertutup di layar
+
             terrain[terrain.length-1].x = width;
         }
 
@@ -496,23 +494,23 @@
                 stars.push({
                     x: Math.random() * canvas.width,
                     y: Math.random() * canvas.height,
-                    size: Math.random() > 0.8 ? 1.5 : 1, // Sedikit variasi ukuran, no blur
+                    size: Math.random() > 0.8 ? 1.5 : 1,
                     blinkSpeed: Math.random() * 0.05
                 });
             }
         }
 
         function drawEnvironment(ctx) {
-            // Gambar Bintang (Statis, retro)
+
             ctx.fillStyle = '#ffffff';
             stars.forEach(s => {
-                // Efek kedip sederhana tanpa alpha blending berat
+
                 if (Math.sin(Date.now() * s.blinkSpeed) > -0.5) {
                     ctx.fillRect(s.x, s.y, s.size, s.size);
                 }
             });
 
-            // Gambar Terrain (Vektor garis)
+
             ctx.strokeStyle = '#aaaaaa';
             ctx.lineWidth = 1;
             ctx.beginPath();
@@ -523,25 +521,25 @@
             }
             ctx.stroke();
 
-            // Gambar area bawah terrain dengan arsir atau fill tipis
+
             ctx.lineTo(canvas.width, canvas.height);
             ctx.lineTo(0, canvas.height);
             ctx.closePath();
-            ctx.fillStyle = '#111111'; // Sangat gelap
+            ctx.fillStyle = '#111111';
             ctx.fill();
 
-            // Highlight Pad Pendaratan (Garis tebal)
+
             ctx.lineWidth = 4;
             for(let i=0; i<terrain.length - 1; i++) {
                 if (terrain[i].isPad && terrain[i+1].isPad) {
-                    // Pad warna putih tebal (atau cyan retro sedikit)
+
                     ctx.strokeStyle = '#ffffff'; 
                     ctx.beginPath();
                     ctx.moveTo(terrain[i].x, terrain[i].y);
                     ctx.lineTo(terrain[i+1].x, terrain[i+1].y);
                     ctx.stroke();
                     
-                    // Tulisan 2x / 3x multiplier opsional
+
                     ctx.fillStyle = '#aaaaaa';
                     ctx.font = '10px Courier New';
                     ctx.fillText('PAD', terrain[i].x + config.padWidth/2 - 10, terrain[i].y + 15);
@@ -550,13 +548,13 @@
         }
 
 
-        // --- SISTEM GAME LOOP ---
+
         function resizeCanvas() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
             if (currentState === STATE.PLAYING || currentState === STATE.PAUSED) {
-                // Jika resize saat main, regrading tidak disarankan. 
-                // Untuk kesederhanaan retro, gambar ulang statis saja.
+
+
                 draw();
             } else {
                 generateStars();
@@ -571,7 +569,7 @@
                 level = 1;
             }
             config = difficulties[currentDiff];
-            resizeCanvas(); // Memaksa regenerasi terrain dengan dimensi layar
+            resizeCanvas();
             generateStars();
             
             lander = new Lander(canvas.width / 2, 50);
@@ -586,9 +584,9 @@
             document.getElementById('pauseMenu').classList.add('hidden');
             document.getElementById('endMenu').classList.add('hidden');
             document.getElementById('hud').classList.remove('hidden');
-            document.getElementById('pauseBtn').classList.add('hidden'); // Sembunyikan tombol jeda saat hitung mundur
+            document.getElementById('pauseBtn').classList.add('hidden');
             
-            // Cek jika butuh tombol mobile
+
             if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
                 document.getElementById('mobileControls').style.display = 'flex';
             }
@@ -622,7 +620,7 @@
         }
 
         function draw() {
-            // Bersihkan kanvas
+
             ctx.fillStyle = '#050505';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -633,7 +631,7 @@
                 lander.draw(ctx);
             }
 
-            // Gambar Hitung Mundur
+
             if (currentState === STATE.COUNTDOWN) {
                 ctx.fillStyle = '#ffffff';
                 ctx.font = 'bold 64px Courier New';
@@ -642,7 +640,7 @@
                 let text = countdownValue > 0 ? countdownValue : "MULAI!";
                 ctx.fillText(text, canvas.width / 2, canvas.height / 3);
                 
-                // Kembalikan ke default
+
                 ctx.textAlign = 'left';
                 ctx.textBaseline = 'alphabetic';
             }
@@ -656,7 +654,7 @@
             }
         }
 
-        // --- SISTEM UI & STATE ---
+
         function formatNumber(num) {
             return (Math.round(num * 10) / 10).toFixed(1);
         }
@@ -666,11 +664,11 @@
             document.getElementById('hudScore').innerText = score;
             document.getElementById('hudFuel').innerText = Math.max(0, Math.floor(lander.fuel));
             
-            // Ketinggian kasar (jarak ke titik terbawah layar)
+
             const alt = canvas.height - lander.y - 12;
             document.getElementById('hudAlt').innerText = Math.max(0, Math.floor(alt));
 
-            const vSpd = lander.vy * 10; // Skala agar angkanya enak dibaca
+            const vSpd = lander.vy * 10;
             const hSpd = lander.vx * 10;
             
             const elVspd = document.getElementById('hudVSpd');
@@ -679,7 +677,7 @@
             elVspd.innerText = formatNumber(vSpd);
             elHspd.innerText = formatNumber(hSpd);
 
-            // Warna peringatan kecepatan
+
             elVspd.className = 'hud-value ' + (Math.abs(lander.vy) > config.maxVSpd ? 'hud-danger' : 'hud-safe');
             elHspd.className = 'hud-value ' + (Math.abs(lander.vx) > config.maxHSpd ? 'hud-danger' : 'hud-safe');
         }
@@ -687,7 +685,7 @@
         function triggerSuccess(multiplier) {
             currentState = STATE.SUCCESS;
             
-            // Kalkulasi skor
+
             const fuelBonus = Math.floor(lander.fuel * 0.5);
             const landingScore = 500 * multiplier;
             const diffMultiplier = currentDiff === 'hard' ? 2 : (currentDiff === 'easy' ? 0.5 : 1);
@@ -724,7 +722,7 @@
                 
                 document.getElementById('endMenu').classList.remove('hidden');
                 document.getElementById('pauseBtn').classList.add('hidden');
-            }, 1500); // Jeda sebentar untuk melihat ledakan
+            }, 1500);
         }
 
         function togglePause() {
@@ -755,12 +753,12 @@
             draw();
         }
 
-        // --- EVENT LISTENERS ---
+
         
-        // Window Resize
+
         window.addEventListener('resize', resizeCanvas);
 
-        // Keyboard
+
         window.addEventListener('keydown', (e) => {
             if(keys.hasOwnProperty(e.code)) keys[e.code] = true;
             if(e.code === 'Escape' || e.code === 'KeyP') {
@@ -771,7 +769,7 @@
             if(keys.hasOwnProperty(e.code)) keys[e.code] = false;
         });
 
-        // Touch Controls
+
         const btnLeft = document.getElementById('btnLeft');
         const btnRight = document.getElementById('btnRight');
         const btnThrust = document.getElementById('btnThrust');
@@ -786,7 +784,7 @@
         bindTouch(btnRight, 'right');
         bindTouch(btnThrust, 'thrust');
 
-        // UI Buttons
+
         document.querySelectorAll('.diff-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active-diff'));
@@ -801,16 +799,16 @@
         document.getElementById('restartPauseBtn').addEventListener('click', () => initGame(true));
         document.getElementById('quitBtn').addEventListener('click', goToMenu);
         
-        document.getElementById('nextLevelBtn').addEventListener('click', () => initGame(false)); // False = Jangan reset skor
+        document.getElementById('nextLevelBtn').addEventListener('click', () => initGame(false));
         document.getElementById('restartEndBtn').addEventListener('click', () => {
             if(currentState === STATE.SUCCESS) {
-                goToMenu(); // Jika sukses tapi pilih ulangi, kembali ke menu
+                goToMenu();
             } else {
-                initGame(true); // Jika game over, restart skor 0
+                initGame(true);
             }
         });
 
-        // Inisialisasi awal tampilan
+
         resizeCanvas();
 
     </script>

@@ -6,7 +6,7 @@
     <title>Asteroids Klasik</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Mencegah default touch action seperti scroll atau zoom pada mobile */
+        
         body {
             touch-action: none;
             overflow: hidden;
@@ -21,7 +21,7 @@
             display: block;
         }
 
-        /* Gaya UI bergaya retro tanpa efek glow/shadow yang berlebihan */
+        
         .retro-btn {
             background-color: black;
             color: white;
@@ -77,19 +77,19 @@
             pointer-events: auto;
         }
 
-        /* Menyembunyikan elemen */
+        
         .hidden { display: none !important; }
     </style>
 </head>
 <body>
 
-    <!-- Game Canvas -->
+    
     <canvas id="gameCanvas"></canvas>
 
-    <!-- UI Overlay Layer -->
+    
     <div id="ui-layer" class="flex flex-col">
         
-        <!-- HUD (Heads Up Display) -->
+        
         <div id="hud" class="hidden flex justify-between items-start p-4 w-full">
             <div>
                 <div class="text-2xl font-bold tracking-widest">SKOR: <span id="scoreDisplay">0</span></div>
@@ -98,7 +98,7 @@
             <button id="btnPause" class="retro-btn !p-2 !text-sm">JEDA ||</button>
         </div>
 
-        <!-- Main Menu -->
+        
         <div id="mainMenu" class="absolute inset-0 flex flex-col items-center justify-center bg-black">
             <h1 class="text-5xl md:text-7xl font-bold tracking-widest mb-8 text-center">ASTEROIDS</h1>
             
@@ -120,21 +120,21 @@
             </div>
         </div>
 
-        <!-- Pause Menu -->
+        
         <div id="pauseMenu" class="hidden absolute inset-0 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm">
             <h2 class="text-5xl font-bold tracking-widest mb-8">DIJEDA</h2>
             <button id="btnResume" class="retro-btn text-xl mb-4">LANJUTKAN</button>
             <button id="btnQuit" class="retro-btn text-xl">KEMBALI KE MENU</button>
         </div>
 
-        <!-- Game Over Menu -->
+        
         <div id="gameOverMenu" class="hidden absolute inset-0 flex flex-col items-center justify-center bg-black/90">
             <h2 class="text-6xl font-bold tracking-widest mb-4">GAME OVER</h2>
             <p class="text-2xl mb-8 tracking-widest">SKOR AKHIR: <span id="finalScore">0</span></p>
             <button id="btnRestart" class="retro-btn text-2xl">MAIN LAGI</button>
         </div>
 
-        <!-- Mobile Touch Controls -->
+        
         <div id="touchControls" class="hidden absolute bottom-4 left-0 w-full flex justify-between px-4 pb-4 md:hidden">
             <div class="flex gap-4">
                 <div id="btnLeft" class="touch-btn">⭠</div>
@@ -149,15 +149,12 @@
     </div>
 
     <script>
-        /**
-         * ENGINE GAME ASTEROIDS KLASIK
-         * Gaya visual sengaja dibuat wireframe/vector (tanpa shadowBlur/glow)
-         */
+        
 
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
-        // UI Elements
+
         const mainMenu = document.getElementById('mainMenu');
         const hud = document.getElementById('hud');
         const pauseMenu = document.getElementById('pauseMenu');
@@ -168,17 +165,17 @@
         const livesDisplay = document.getElementById('livesDisplay');
         const finalScore = document.getElementById('finalScore');
 
-        // Konstanta Fisika dan Game
+
         const FPS = 60;
         const FRICTION = 0.99;
         const SHIP_SIZE = 15;
-        const TURN_SPEED = 360; // Derajat per detik
-        const THRUST = 5; // Akselerasi (pixel per detik)
+        const TURN_SPEED = 360;
+        const THRUST = 5;
         const MAX_SPEED = 10;
-        const BULLET_SPEED = 500; // Pixel per detik
-        const BULLET_MAX_DIST = 0.6; // Fraksi dari lebar layar sebelum peluru hilang
+        const BULLET_SPEED = 500;
+        const BULLET_MAX_DIST = 0.6;
         
-        // Pengaturan Kesulitan
+
         const DIFFICULTY_SETTINGS = {
             easy: { astCount: 3, astSpeed: 1, astSize: 100 },
             medium: { astCount: 5, astSpeed: 1.5, astSize: 80 },
@@ -186,19 +183,19 @@
         };
         let currentDifficulty = 'easy';
 
-        // State Game
-        let state = 'MENU'; // MENU, PLAYING, PAUSED, GAMEOVER
+
+        let state = 'MENU';
         let score = 0;
         let lives = 3;
         let level = 0;
         
-        // Entitas Game
+
         let ship;
         let asteroids = [];
         let bullets = [];
         let particles = [];
 
-        // Input
+
         const keys = {
             left: false,
             right: false,
@@ -206,7 +203,7 @@
             fire: false
         };
 
-        // Resize handler
+
         function resizeCanvas() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
@@ -214,26 +211,26 @@
         window.addEventListener('resize', resizeCanvas);
         resizeCanvas();
 
-        // Cek perangkat mobile untuk menampilkan kontrol sentuh
+
         function isMobile() {
             return ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
         }
 
-        // --- CLASSES ENTITAS ---
+
 
         class Ship {
             constructor() {
                 this.x = canvas.width / 2;
                 this.y = canvas.height / 2;
                 this.r = SHIP_SIZE;
-                this.a = 90 / 180 * Math.PI; // Menghadap ke atas
+                this.a = 90 / 180 * Math.PI;
                 this.rot = 0;
                 this.thrusting = false;
                 this.vx = 0;
                 this.vy = 0;
                 this.explodeTime = 0;
                 this.blinkTime = Math.ceil(0.1 * FPS);
-                this.blinkNum = Math.ceil(3 * FPS / (0.1 * FPS)); // Kebal 3 detik
+                this.blinkNum = Math.ceil(3 * FPS / (0.1 * FPS));
                 this.canShoot = true;
                 this.dead = false;
             }
@@ -241,40 +238,40 @@
             update() {
                 if (this.dead) return;
 
-                // Kebal / berkedip (Invulnerability)
+
                 const blinkOn = this.blinkNum % 2 == 0;
 
-                // Rotasi
+
                 this.a += this.rot;
 
-                // Momentum / Thrust
+
                 if (this.thrusting) {
                     this.vx += THRUST * Math.cos(this.a) / FPS;
                     this.vy -= THRUST * Math.sin(this.a) / FPS;
                     
-                    // Batas kecepatan maksimal
+
                     const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
                     if (speed > MAX_SPEED) {
                         this.vx = (this.vx / speed) * MAX_SPEED;
                         this.vy = (this.vy / speed) * MAX_SPEED;
                     }
                 } else {
-                    // Gesekan (Friction)
+
                     this.vx *= FRICTION;
                     this.vy *= FRICTION;
                 }
 
-                // Pergerakan
+
                 this.x += this.vx;
                 this.y += this.vy;
 
-                // Batas Layar (Wrap around)
+
                 if (this.x < 0 - this.r) this.x = canvas.width + this.r;
                 else if (this.x > canvas.width + this.r) this.x = 0 - this.r;
                 if (this.y < 0 - this.r) this.y = canvas.height + this.r;
                 else if (this.y > canvas.height + this.r) this.y = 0 - this.r;
 
-                // Kurangi waktu kedip
+
                 if (this.blinkNum > 0) {
                     this.blinkTime--;
                     if (this.blinkTime == 0) {
@@ -294,17 +291,17 @@
                 ctx.lineWidth = 1.5;
                 ctx.beginPath();
                 
-                // Hidung kapal
+
                 ctx.moveTo(
                     this.x + 4 / 3 * this.r * Math.cos(this.a),
                     this.y - 4 / 3 * this.r * Math.sin(this.a)
                 );
-                // Kiri belakang
+
                 ctx.lineTo(
                     this.x - this.r * (2 / 3 * Math.cos(this.a) + Math.sin(this.a)),
                     this.y + this.r * (2 / 3 * Math.sin(this.a) - Math.cos(this.a))
                 );
-                // Kanan belakang
+
                 ctx.lineTo(
                     this.x - this.r * (2 / 3 * Math.cos(this.a) - Math.sin(this.a)),
                     this.y + this.r * (2 / 3 * Math.sin(this.a) + Math.cos(this.a))
@@ -312,7 +309,7 @@
                 ctx.closePath();
                 ctx.stroke();
 
-                // Menggambar efek thruster (tanpa glow, hanya garis)
+
                 if (this.thrusting) {
                     ctx.strokeStyle = "white";
                     ctx.beginPath();
@@ -333,14 +330,14 @@
             }
 
             shoot() {
-                if (this.canShoot && bullets.length < 5 && !this.dead) { // Batas peluru max 5
+                if (this.canShoot && bullets.length < 5 && !this.dead) {
                     bullets.push(new Bullet(
                         this.x + 4/3 * this.r * Math.cos(this.a),
                         this.y - 4/3 * this.r * Math.sin(this.a),
                         this.a
                     ));
                     this.canShoot = false;
-                    // Cooldown tembakan
+
                     setTimeout(() => { this.canShoot = true; }, 150);
                 }
             }
@@ -367,14 +364,14 @@
                 this.y = y;
                 this.r = r;
                 
-                // Acak kecepatan berdasarkan tingkat kesulitan
+
                 const speedMult = DIFFICULTY_SETTINGS[currentDifficulty].astSpeed * (1 + levelDiff * 0.1);
                 const lvlMult = 1 + levelDiff * 0.1;
                 this.xv = Math.random() * speedMult * (Math.random() < 0.5 ? 1 : -1);
                 this.yv = Math.random() * speedMult * (Math.random() < 0.5 ? 1 : -1);
                 
                 this.a = Math.random() * Math.PI * 2;
-                this.vert = Math.floor(Math.random() * 5 + 7); // 7-11 sudut
+                this.vert = Math.floor(Math.random() * 5 + 7);
                 this.offs = [];
                 for (let i = 0; i < this.vert; i++) {
                     this.offs.push(Math.random() * 0.4 * 2 + 1 - 0.4);
@@ -385,7 +382,7 @@
                 this.x += this.xv;
                 this.y += this.yv;
 
-                // Batas Layar
+
                 if (this.x < 0 - this.r) this.x = canvas.width + this.r;
                 else if (this.x > canvas.width + this.r) this.x = 0 - this.r;
                 if (this.y < 0 - this.r) this.y = canvas.height + this.r;
@@ -452,7 +449,7 @@
             }
         }
 
-        // --- SISTEM GAME ---
+
 
         function createAsteroids() {
             asteroids = [];
@@ -461,7 +458,7 @@
             const numAsteroids = diff.astCount + level;
             
             for (let i = 0; i < numAsteroids; i++) {
-                // Jangan spawn dekat kapal
+
                 do {
                     x = Math.floor(Math.random() * canvas.width);
                     y = Math.floor(Math.random() * canvas.height);
@@ -484,23 +481,23 @@
         function handleCollisions() {
             if (ship.dead) return;
 
-            // Cek tabrakan Peluru ke Asteroid
+
             for (let i = bullets.length - 1; i >= 0; i--) {
                 let bulletHit = false;
                 for (let j = asteroids.length - 1; j >= 0; j--) {
                     if (distanceBetweenPoints(asteroids[j].x, asteroids[j].y, bullets[i].x, bullets[i].y) < asteroids[j].r) {
                         
-                        // Hancurkan Asteroid
+
                         const ast = asteroids[j];
                         createExplosion(ast.x, ast.y, 10);
                         
-                        // Tambah skor berdasarkan ukuran
+
                         if (ast.r > 30) score += 20;
                         else if (ast.r > 15) score += 50;
                         else score += 100;
                         updateHUD();
 
-                        // Pecah jika cukup besar
+
                         if (ast.r > 15) {
                             asteroids.push(new Asteroid(ast.x, ast.y, ast.r / 2, level));
                             asteroids.push(new Asteroid(ast.x, ast.y, ast.r / 2, level));
@@ -516,7 +513,7 @@
                 }
             }
 
-            // Cek tabrakan Kapal ke Asteroid (hanya jika tidak kebal)
+
             if (ship.blinkNum == 0) {
                 for (let i = 0; i < asteroids.length; i++) {
                     if (distanceBetweenPoints(ship.x, ship.y, asteroids[i].x, asteroids[i].y) < ship.r + asteroids[i].r) {
@@ -569,29 +566,29 @@
             }
         }
 
-        // --- INPUT HANDLERS ---
+
 
         document.addEventListener("keydown", (e) => {
             if (state !== 'PLAYING' && state !== 'PAUSED') return;
 
             switch(e.keyCode) {
-                case 37: // Kiri
+                case 37:
                     keys.left = true;
                     if(ship && !ship.dead) ship.rot = TURN_SPEED / 180 * Math.PI / FPS;
                     break;
-                case 39: // Kanan
+                case 39:
                     keys.right = true;
                     if(ship && !ship.dead) ship.rot = -TURN_SPEED / 180 * Math.PI / FPS;
                     break;
-                case 38: // Atas
+                case 38:
                     keys.thrust = true;
                     if(ship && !ship.dead) ship.thrusting = true;
                     break;
-                case 32: // Spasi
+                case 32:
                     keys.fire = true;
                     if(ship && !ship.dead) ship.shoot();
                     break;
-                case 80: // P - Pause
+                case 80:
                     togglePause();
                     break;
             }
@@ -619,7 +616,7 @@
             }
         });
 
-        // Event listener tingkat kesulitan
+
         document.querySelectorAll('.diff-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('selected'));
@@ -628,7 +625,7 @@
             });
         });
 
-        // Event listener tombol UI
+
         document.getElementById('btnStart').addEventListener('click', startGame);
         document.getElementById('btnRestart').addEventListener('click', startGame);
         document.getElementById('btnPause').addEventListener('click', togglePause);
@@ -641,7 +638,7 @@
             mainMenu.classList.remove('hidden');
         });
 
-        // Event listener Sentuh (Touch Controls)
+
         function bindTouch(btnId, downFn, upFn) {
             const btn = document.getElementById(btnId);
             btn.addEventListener('touchstart', (e) => { e.preventDefault(); downFn(); });
@@ -666,7 +663,7 @@
             () => {}
         );
 
-        // --- GAME LOOP ---
+
 
         function update() {
             if (state === 'PLAYING') {
@@ -674,10 +671,10 @@
                 
                 asteroids.forEach(a => a.update());
                 
-                // Update & bersihkan peluru
+
                 for (let i = bullets.length - 1; i >= 0; i--) {
                     bullets[i].update();
-                    // Peluru hilang jika mencapai batas jarak atau keluar batas tepi layar
+
                     if (bullets[i].dist > canvas.width * BULLET_MAX_DIST || 
                         bullets[i].x < 0 || bullets[i].x > canvas.width || 
                         bullets[i].y < 0 || bullets[i].y > canvas.height) {
@@ -685,7 +682,7 @@
                     }
                 }
 
-                // Update partikel
+
                 for (let i = particles.length - 1; i >= 0; i--) {
                     particles[i].update();
                     if (particles[i].life <= 0) {
@@ -695,7 +692,7 @@
 
                 handleCollisions();
 
-                // Lanjut ke level berikutnya jika semua asteroid hancur
+
                 if (asteroids.length === 0 && ship && !ship.dead) {
                     level++;
                     createAsteroids();
@@ -704,7 +701,7 @@
         }
 
         function draw() {
-            // Bersihkan kanvas (Background Hitam)
+
             ctx.fillStyle = "black";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -722,7 +719,7 @@
             requestAnimationFrame(gameLoop);
         }
 
-        // Mulai Loop
+
         requestAnimationFrame(gameLoop);
 
     </script>

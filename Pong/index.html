@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Pong Klasik</title>
     <style>
-        /* Desain Flat Klasik, Tanpa Efek Glow */
+        
         * {
             margin: 0;
             padding: 0;
@@ -17,7 +17,7 @@
             background-color: #000;
             color: #fff;
             overflow: hidden;
-            touch-action: none; /* Mencegah layar tertarik di mobile */
+            touch-action: none; 
             display: flex;
             justify-content: center;
             align-items: center;
@@ -29,7 +29,7 @@
             position: relative;
             width: 100%;
             height: 100%;
-            max-width: 1000px; /* Batas maksimal di PC */
+            max-width: 1000px; 
             max-height: 750px;
             border: 2px solid #fff;
             background-color: #000;
@@ -41,7 +41,7 @@
             height: 100%;
         }
 
-        /* Sistem UI Lapis */
+        
         .ui-layer {
             position: absolute;
             top: 0;
@@ -52,7 +52,7 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            background-color: rgba(0, 0, 0, 0.85); /* Latar belakang solid transparan */
+            background-color: rgba(0, 0, 0, 0.85); 
             z-index: 10;
         }
 
@@ -98,7 +98,7 @@
             color: #000;
         }
 
-        /* Tombol Pause di pojok layar */
+        
         #pause-btn {
             position: absolute;
             top: 15px;
@@ -109,7 +109,7 @@
             z-index: 5;
         }
 
-        /* Garis tengah retro */
+        
         #center-line {
             position: absolute;
             top: 0;
@@ -175,7 +175,7 @@
 
     <canvas id="gameCanvas"></canvas>
 
-    <!-- Menu Utama -->
+    
     <div id="menu-screen" class="ui-layer">
         <h1>PONG KLASIK</h1>
         <h2>Pilih Kesulitan:</h2>
@@ -184,14 +184,14 @@
         <button onclick="startGame('HARD')">Sulit</button>
     </div>
 
-    <!-- Menu Jeda -->
+    
     <div id="pause-screen" class="ui-layer hidden">
         <h1>DIJEDA</h1>
         <button onclick="resumeGame()">Lanjutkan</button>
         <button onclick="backToMenu()">Kembali ke Menu</button>
     </div>
 
-    <!-- Layar Game Over -->
+    
     <div id="game-over-screen" class="ui-layer hidden">
         <h1 id="winner-text">KAMU MENANG!</h1>
         <p class="score-display">Skor Akhir: <span id="final-score">0 - 0</span></p>
@@ -203,7 +203,7 @@
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     
-    // UI Elements
+
     const menuScreen = document.getElementById('menu-screen');
     const pauseScreen = document.getElementById('pause-screen');
     const gameOverScreen = document.getElementById('game-over-screen');
@@ -214,17 +214,17 @@
     const scoreBoard = document.getElementById('score-board');
     const countdownEl = document.getElementById('countdown-display');
 
-    // Resolusi Logika Game (Tetap stabil meski layar di-resize)
+
     const LOGICAL_WIDTH = 800;
     const LOGICAL_HEIGHT = 600;
 
-    let gameState = 'MENU'; // MENU, PLAYING, PAUSED, GAMEOVER, COUNTDOWN
+    let gameState = 'MENU';
     let animationId;
-    let maxScore = 5; // Poin untuk menang
+    let maxScore = 5;
     let countdownInterval = null;
     let countdownValue = 0;
 
-    // Parameter Kesulitan
+
     const difficulties = {
         EASY: { aiSpeed: 3, ballSpeed: 6 },
         MEDIUM: { aiSpeed: 5, ballSpeed: 8 },
@@ -232,12 +232,12 @@
     };
     let currentDifficulty = 'MEDIUM';
 
-    // Objek Game
+
     const player = { x: 20, y: 0, width: 15, height: 100, score: 0 };
     const ai = { x: LOGICAL_WIDTH - 35, y: 0, width: 15, height: 100, score: 0 };
     const ball = { x: LOGICAL_WIDTH / 2, y: LOGICAL_HEIGHT / 2, radius: 10, speed: 7, velocityX: 5, velocityY: 5 };
 
-    // Set ukuran canvas agar menyesuaikan kontainer
+
     function resizeCanvas() {
         const container = document.getElementById('game-container');
         canvas.width = container.clientWidth;
@@ -246,14 +246,14 @@
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
 
-    // Fungsi Reset
+
     function resetBall() {
         ball.x = LOGICAL_WIDTH / 2;
         ball.y = LOGICAL_HEIGHT / 2;
         ball.speed = difficulties[currentDifficulty].ballSpeed;
         ball.velocityX = (Math.random() > 0.5 ? 1 : -1) * ball.speed;
         ball.velocityY = (Math.random() * 2 - 1) * ball.speed;
-        if(ball.velocityY === 0) ball.velocityY = 2; // Mencegah bola bergerak lurus secara horizontal
+        if(ball.velocityY === 0) ball.velocityY = 2;
     }
 
     function resetGame() {
@@ -276,7 +276,7 @@
         if (countdownInterval) clearInterval(countdownInterval);
         
         countdownInterval = setInterval(() => {
-            if (gameState === 'PAUSED') return; // Jeda hitungan jika game di-pause
+            if (gameState === 'PAUSED') return;
             
             countdownValue--;
             if (countdownValue > 0) {
@@ -294,7 +294,7 @@
         }, 1000);
     }
 
-    // Navigasi Layar
+
     function startGame(diff) {
         currentDifficulty = diff;
         resetGame();
@@ -311,7 +311,7 @@
 
     function togglePause() {
         if (gameState === 'PLAYING' || gameState === 'COUNTDOWN') {
-            pauseScreen.dataset.prevState = gameState; // Simpan state sebelumnya
+            pauseScreen.dataset.prevState = gameState;
             gameState = 'PAUSED';
             pauseScreen.classList.remove('hidden');
             pauseBtn.classList.add('hidden');
@@ -348,7 +348,7 @@
         document.getElementById('final-score').innerText = `${player.score} - ${ai.score}`;
     }
 
-    // Event Listeners Kontrol
+
     pauseBtn.addEventListener('click', togglePause);
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') {
@@ -357,10 +357,10 @@
         }
     });
 
-    // Kontrol Mouse & Touch
+
     function getMousePos(evt) {
         const rect = canvas.getBoundingClientRect();
-        // Skala koordinat Y layar ke koordinat Y logika
+
         const scaleY = LOGICAL_HEIGHT / rect.height;
         let y = (evt.clientY - rect.top) * scaleY;
         return y;
@@ -374,12 +374,12 @@
 
     canvas.addEventListener('touchmove', (e) => {
         if (gameState !== 'PLAYING' && gameState !== 'COUNTDOWN') return;
-        e.preventDefault(); // Mencegah scrolling browser
+        e.preventDefault();
         let y = getMousePos(e.touches[0]);
         player.y = y - player.height / 2;
     }, { passive: false });
 
-    // Batasi posisi papan agar tidak keluar layar
+
     function clampPaddle(paddle) {
         if (paddle.y < 0) paddle.y = 0;
         if (paddle.y + paddle.height > LOGICAL_HEIGHT) paddle.y = LOGICAL_HEIGHT - paddle.height;
@@ -390,9 +390,9 @@
         scoreAiEl.innerText = ai.score;
     }
 
-    // Logika Pembaruan Game
+
     function update() {
-        // Logika AI (Komputer ke tengah saat hitung mundur, atau ikuti bola saat bermain)
+
         const aiSpeed = difficulties[currentDifficulty].aiSpeed;
         const targetY = (gameState === 'COUNTDOWN') ? LOGICAL_HEIGHT / 2 : ball.y;
         const aiCenter = ai.y + ai.height / 2;
@@ -406,43 +406,43 @@
         clampPaddle(player);
         clampPaddle(ai);
 
-        // Hanya jalankan logika pergerakan bola dan tabrakan saat sedang bermain (bukan saat countdown)
+
         if (gameState === 'PLAYING') {
-            // Gerakan Bola
+
             ball.x += ball.velocityX;
             ball.y += ball.velocityY;
 
-            // Pantulan Bola di Dinding Atas / Bawah
+
             if (ball.y - ball.radius < 0 || ball.y + ball.radius > LOGICAL_HEIGHT) {
                 ball.velocityY = -ball.velocityY;
-                // Koreksi posisi agar bola tidak tersangkut
+
                 ball.y = ball.y - ball.radius < 0 ? ball.radius : LOGICAL_HEIGHT - ball.radius; 
             }
 
-            // Cek tabrakan dengan papan (Player atau AI)
+
             let targetPaddle = (ball.x < LOGICAL_WIDTH / 2) ? player : ai;
 
-            // Hitbox collision
+
             if (ball.x - ball.radius < targetPaddle.x + targetPaddle.width && 
                 ball.x + ball.radius > targetPaddle.x && 
                 ball.y + ball.radius > targetPaddle.y && 
                 ball.y - ball.radius < targetPaddle.y + targetPaddle.height) {
                 
-                // Tentukan arah pantulan (kiri atau kanan)
+
                 let direction = (ball.x < LOGICAL_WIDTH / 2) ? 1 : -1;
                 
-                // Kalkulasi sudut pantulan berdasarkan titik kena di papan
-                let collidePoint = (ball.y - (targetPaddle.y + targetPaddle.height / 2));
-                collidePoint = collidePoint / (targetPaddle.height / 2); // Normalisasi antara -1 hingga 1
-                let angleRad = (Math.PI / 4) * collidePoint; // Sudut maksimal 45 derajat
 
-                // Tingkatkan kecepatan sedikit setiap kali memantul untuk menambah tantangan
+                let collidePoint = (ball.y - (targetPaddle.y + targetPaddle.height / 2));
+                collidePoint = collidePoint / (targetPaddle.height / 2);
+                let angleRad = (Math.PI / 4) * collidePoint;
+
+
                 ball.speed += 0.2;
 
                 ball.velocityX = direction * ball.speed * Math.cos(angleRad);
                 ball.velocityY = ball.speed * Math.sin(angleRad);
                 
-                // Pindahkan bola agar tidak tersangkut di dalam papan
+
                 if (direction === 1) {
                     ball.x = targetPaddle.x + targetPaddle.width + ball.radius;
                 } else {
@@ -450,7 +450,7 @@
                 }
             }
 
-            // Cek Skor
+
             if (ball.x - ball.radius < 0) {
                 ai.score++;
                 updateScoreUI();
@@ -462,37 +462,37 @@
                 if(player.score >= maxScore) gameOver(true);
                 else startCountdown();
             }
-        } // Penutup if (gameState === 'PLAYING')
+        }
     }
 
-    // Menggambar Game
+
     function draw() {
-        // Bersihkan canvas dengan mengisi ulang warna hitam solid
+
         ctx.fillStyle = "#000";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         if (gameState !== 'PLAYING' && gameState !== 'PAUSED' && gameState !== 'COUNTDOWN') return;
 
-        // Skala render untuk menyesuaikan dengan layar device
+
         ctx.save();
         ctx.scale(canvas.width / LOGICAL_WIDTH, canvas.height / LOGICAL_HEIGHT);
 
-        // Gambar warna solid putih
+
         ctx.fillStyle = "#FFF";
 
-        // Gambar Player
+
         ctx.fillRect(player.x, player.y, player.width, player.height);
 
-        // Gambar AI
+
         ctx.fillRect(ai.x, ai.y, ai.width, ai.height);
 
-        // Gambar Bola (Kotak klasik, bukan lingkaran untuk gaya retro)
+
         ctx.fillRect(ball.x - ball.radius, ball.y - ball.radius, ball.radius * 2, ball.radius * 2);
 
         ctx.restore();
     }
 
-    // Game Loop Utama
+
     function gameLoop() {
         if (gameState === 'PLAYING' || gameState === 'COUNTDOWN') {
             update();
@@ -501,7 +501,7 @@
         animationId = requestAnimationFrame(gameLoop);
     }
 
-    // Sembunyikan elemen UI in-game pada saat baru dimuat
+
     centerLine.style.display = 'none';
     scoreBoard.style.display = 'none';
     

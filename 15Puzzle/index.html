@@ -6,12 +6,12 @@
     <title>Puzzle Geser Klasik</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Desain Minimalis & Tanpa Efek Mencolok */
+        
         body {
-            background-color: #f1f5f9; /* Slate 100 */
-            color: #1e293b; /* Slate 800 */
+            background-color: #f1f5f9; 
+            color: #1e293b; 
             font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            touch-action: manipulation; /* Mencegah zoom saat tap cepat di mobile */
+            touch-action: manipulation; 
         }
 
         #game-container {
@@ -19,8 +19,8 @@
             max-width: 450px;
             aspect-ratio: 1 / 1;
             position: relative;
-            background-color: #cbd5e1; /* Slate 300 - Base board color */
-            border: 4px solid #475569; /* Slate 600 */
+            background-color: #cbd5e1; 
+            border: 4px solid #475569; 
             border-radius: 4px;
             overflow: hidden;
             box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
@@ -28,25 +28,25 @@
 
         .tile {
             position: absolute;
-            background-color: #f8fafc; /* Slate 50 */
-            border: 1px solid #94a3b8; /* Slate 400 */
+            background-color: #f8fafc; 
+            border: 1px solid #94a3b8; 
             border-radius: 2px;
             display: flex;
             justify-content: center;
             align-items: center;
             font-weight: bold;
-            color: #334155; /* Slate 700 */
+            color: #334155; 
             cursor: pointer;
-            transition: top 0.15s ease-out, left 0.15s ease-out; /* Animasi geser yang bersih */
+            transition: top 0.15s ease-out, left 0.15s ease-out; 
             user-select: none;
-            box-shadow: 1px 1px 2px rgba(0,0,0,0.1); /* Sedikit efek timbul klasik */
+            box-shadow: 1px 1px 2px rgba(0,0,0,0.1); 
         }
 
         .tile:active {
-            background-color: #e2e8f0; /* Slate 200 */
+            background-color: #e2e8f0; 
         }
 
-        /* Overlay Pause dan Win */
+        
         .overlay {
             position: absolute;
             top: 0; left: 0; right: 0; bottom: 0;
@@ -64,7 +64,7 @@
             pointer-events: none;
         }
 
-        /* Custom Button Style */
+        
         .btn {
             background-color: #ffffff;
             border: 2px solid #475569;
@@ -99,13 +99,13 @@
 <body class="min-h-screen flex flex-col items-center py-8 px-4">
 
     <div class="w-full max-w-md">
-        <!-- Header -->
+        
         <div class="text-center mb-6">
             <h1 class="text-3xl font-bold tracking-tight mb-1">Puzzle Geser</h1>
             <p class="text-sm text-slate-500">Urutkan angka dari ujung kiri atas ke kanan bawah.</p>
         </div>
 
-        <!-- Controls -->
+        
         <div class="bg-white p-4 border-2 border-slate-300 rounded-md mb-6 shadow-sm">
             <div class="flex flex-wrap gap-3 mb-4 items-end">
                 <div class="flex-1 min-w-[120px]">
@@ -135,20 +135,20 @@
             </div>
         </div>
 
-        <!-- Game Board Area -->
+        
         <div class="flex justify-center w-full">
             <div id="game-container">
                 <div id="tiles-wrapper" class="w-full h-full relative">
-                    <!-- Tiles will be generated here by JS -->
+                    
                 </div>
                 
-                <!-- Pause Overlay -->
+                
                 <div id="pause-overlay" class="overlay hidden">
                     <h2 class="text-2xl font-bold text-slate-700 mb-4">DIJEDA</h2>
                     <button id="btn-resume" class="btn btn-primary">Lanjutkan Permainan</button>
                 </div>
 
-                <!-- Win Overlay -->
+                
                 <div id="win-overlay" class="overlay hidden">
                     <h2 class="text-2xl font-bold text-green-700 mb-2">SELESAI!</h2>
                     <p class="text-slate-600 mb-1">Waktu: <span id="win-time" class="font-mono font-bold"></span></p>
@@ -160,7 +160,7 @@
     </div>
 
     <script>
-        // State Variabel
+
         let size = 4;
         let board = [];
         let tilesDOM = [];
@@ -174,7 +174,7 @@
         let isPaused = false;
         let isWon = false;
 
-        // Elemen DOM
+
         const container = document.getElementById('tiles-wrapper');
         const diffSelect = document.getElementById('difficulty');
         const btnNewGame = document.getElementById('btn-new-game');
@@ -188,14 +188,14 @@
         const pauseOverlay = document.getElementById('pause-overlay');
         const winOverlay = document.getElementById('win-overlay');
 
-        // Format waktu ke MM:SS
+
         function formatTime(seconds) {
             const m = Math.floor(seconds / 60).toString().padStart(2, '0');
             const s = (seconds % 60).toString().padStart(2, '0');
             return `${m}:${s}`;
         }
 
-        // Timer controller
+
         function startTimer() {
             if (!intervalId) {
                 intervalId = setInterval(() => {
@@ -220,14 +220,14 @@
             moveDisplay.textContent = "0";
         }
 
-        // Inisialisasi Papan
+
         function initBoard() {
             size = parseInt(diffSelect.value);
             container.innerHTML = '';
             board = [];
             tilesDOM = [];
             
-            // Menyesuaikan ukuran font berdasarkan grid size
+
             let fontSize = '2rem';
             if (size === 5) fontSize = '1.5rem';
             if (size === 6) fontSize = '1.25rem';
@@ -239,7 +239,7 @@
                 board[r] = [];
                 for (let c = 0; c < size; c++) {
                     let val = r * size + c + 1;
-                    if (val === tileCount) val = 0; // 0 menandakan kotak kosong
+                    if (val === tileCount) val = 0;
                     
                     board[r][c] = val;
 
@@ -251,7 +251,7 @@
                         tile.style.height = `${100 / size}%`;
                         tile.style.fontSize = fontSize;
                         
-                        // Event listener untuk klik/sentuh (berlaku mouse dan layar sentuh)
+
                         tile.addEventListener('click', () => handleTileClick(r, c, val));
                         
                         tilesDOM[val] = tile;
@@ -262,7 +262,7 @@
             renderBoard();
         }
 
-        // Render posisi tile berdasarkan array state 'board'
+
         function renderBoard() {
             for (let r = 0; r < size; r++) {
                 for (let c = 0; c < size; c++) {
@@ -271,7 +271,7 @@
                         let tile = tilesDOM[val];
                         tile.style.top = `${(r / size) * 100}%`;
                         tile.style.left = `${(c / size) * 100}%`;
-                        // Perbarui data internal element untuk event listener
+
                         tile.dataset.row = r;
                         tile.dataset.col = c;
                     } else {
@@ -281,9 +281,9 @@
             }
         }
 
-        // Logika Mengacak Papan (Simulasi geser agar selalu bisa diselesaikan)
+
         function shuffleBoard() {
-            // Jumlah acakan tergantung ukuran grid
+
             let iterations = size * size * 20; 
             let prevEmptyR = -1;
             let prevEmptyC = -1;
@@ -294,19 +294,19 @@
             for (let i = 0; i < iterations; i++) {
                 let validMoves = [];
                 
-                // Cari arah yang valid, dan jangan langsung berbalik arah ke langkah sebelumnya
+
                 if (currR > 0 && !(currR - 1 === prevEmptyR && currC === prevEmptyC)) validMoves.push({r: currR - 1, c: currC});
                 if (currR < size - 1 && !(currR + 1 === prevEmptyR && currC === prevEmptyC)) validMoves.push({r: currR + 1, c: currC});
                 if (currC > 0 && !(currR === prevEmptyR && currC - 1 === prevEmptyC)) validMoves.push({r: currR, c: currC - 1});
                 if (currC < size - 1 && !(currR === prevEmptyR && currC + 1 === prevEmptyC)) validMoves.push({r: currR, c: currC + 1});
 
-                // Pilih geseran acak
+
                 let move = validMoves[Math.floor(Math.random() * validMoves.length)];
                 
                 prevEmptyR = currR;
                 prevEmptyC = currC;
 
-                // Lakukan pertukaran (swap) pada array
+
                 let tileToMove = board[move.r][move.c];
                 board[currR][currC] = tileToMove;
                 board[move.r][move.c] = 0;
@@ -319,35 +319,35 @@
             renderBoard();
         }
 
-        // Handle pergerakan
+
         function handleTileClick(clickEventR, clickEventC, val) {
             if (!isPlaying || isPaused || isWon) return;
 
-            // Karena elemen bergerak, kita harus ambil posisi baris dan kolom yang terbaru dari dataset
+
             const tile = tilesDOM[val];
             const r = parseInt(tile.dataset.row);
             const c = parseInt(tile.dataset.col);
 
-            // Cek apakah posisi tile bersebelahan dengan kotak kosong
+
             const isAdjacent = (Math.abs(r - emptyPos.r) === 1 && c === emptyPos.c) || 
                                (Math.abs(c - emptyPos.c) === 1 && r === emptyPos.r);
 
             if (isAdjacent) {
-                // Lakukan swap di array
+
                 board[emptyPos.r][emptyPos.c] = val;
                 board[r][c] = 0;
                 
                 emptyPos = { r, c };
                 
-                // Update tampilan
+
                 renderBoard();
                 
-                // Update stats
-                if (moves === 0) startTimer(); // Mulai waktu saat langkah pertama
+
+                if (moves === 0) startTimer();
                 moves++;
                 moveDisplay.textContent = moves;
 
-                // Cek menang
+
                 checkWinCondition();
             }
         }
@@ -358,7 +358,7 @@
             for (let r = 0; r < size; r++) {
                 for (let c = 0; c < size; c++) {
                     if (r === size - 1 && c === size - 1) {
-                        if (board[r][c] !== 0) return; // Kotak terakhir harus kosong (0)
+                        if (board[r][c] !== 0) return;
                     } else {
                         if (board[r][c] !== count) return;
                     }
@@ -366,7 +366,7 @@
                 }
             }
             
-            // Jika sampai ke titik ini, berarti pemain menang
+
             triggerWin();
         }
 
@@ -379,20 +379,20 @@
             document.getElementById('win-time').textContent = formatTime(timer);
             document.getElementById('win-moves').textContent = moves;
             
-            // Tunggu animasi geser terakhir selesai lalu tampilkan overlay
+
             setTimeout(() => {
                 winOverlay.classList.remove('hidden');
             }, 300);
         }
 
-        // Control Actions
+
         function startNewGame() {
             winOverlay.classList.add('hidden');
             pauseOverlay.classList.add('hidden');
             resetTimerAndMoves();
             initBoard();
             
-            // Jeda sebentar agar transisi bersih
+
             setTimeout(() => {
                 shuffleBoard();
                 isPlaying = true;
@@ -407,13 +407,13 @@
             if (!isPlaying || isWon) return;
 
             if (isPaused) {
-                // Resume
+
                 isPaused = false;
                 if (moves > 0) startTimer();
                 pauseOverlay.classList.add('hidden');
                 btnPause.textContent = "Jeda";
             } else {
-                // Pause
+
                 isPaused = true;
                 stopTimer();
                 pauseOverlay.classList.remove('hidden');
@@ -421,20 +421,20 @@
             }
         }
 
-        // Event Listeners
+
         btnNewGame.addEventListener('click', startNewGame);
         btnPlayAgain.addEventListener('click', startNewGame);
         btnPause.addEventListener('click', togglePause);
         btnResume.addEventListener('click', togglePause);
         
         diffSelect.addEventListener('change', () => {
-            // Jika mengganti kesulitan di tengah jalan, langsung mulai ulang
+
             startNewGame();
         });
 
-        // Initialize pertama kali load
+
         window.addEventListener('DOMContentLoaded', () => {
-            // Hanya buat papan terurut dulu, user harus klik mulai baru (atau auto-start)
+
             startNewGame();
         });
 

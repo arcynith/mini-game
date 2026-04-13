@@ -6,7 +6,7 @@
     <title>Game Kartu Memori</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Desain bersih, tanpa efek glow */
+        
         :root {
             --bg-color: #f1f5f9;
             --primary: #334155;
@@ -26,10 +26,10 @@
             background-color: var(--bg-color);
             color: var(--primary);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            touch-action: manipulation; /* Mencegah zoom saat tap cepat di mobile */
+            touch-action: manipulation; 
         }
 
-        /* 3D Flip Animasi untuk Kartu */
+        
         .memory-card {
             perspective: 1000px;
             cursor: pointer;
@@ -65,25 +65,25 @@
             font-size: 2.5rem;
         }
 
-        /* Front adalah bagian yang ada gambarnya (setelah dibalik) */
+        
         .memory-card-front {
             transform: rotateY(180deg);
             background-color: white;
             border: 2px solid #e2e8f0;
         }
 
-        /* Back adalah punggung kartu (sebelum dibalik) */
+        
         .memory-card-back {
             background: var(--card-back-pattern);
             border: 2px solid #94a3b8;
         }
 
         .memory-card.matched .memory-card-front {
-            background-color: #dcfce7; /* Hijau pucat saat cocok */
+            background-color: #dcfce7; 
             border-color: #86efac;
         }
 
-        /* Tampilan Jeda yang menyembunyikan board */
+        
         #pause-overlay {
             backdrop-filter: blur(5px);
             background-color: rgba(241, 245, 249, 0.9);
@@ -92,10 +92,10 @@
 </head>
 <body class="min-h-screen flex items-center justify-center p-4">
 
-    <!-- Container Utama -->
+    
     <div class="w-full max-w-2xl bg-white p-6 rounded-xl shadow-lg border border-slate-200 relative overflow-hidden">
         
-        <!-- Layar Mulai -->
+        
         <div id="start-screen" class="text-center py-8">
             <h1 class="text-3xl md:text-4xl font-bold mb-2 text-slate-800">Kartu Memori</h1>
             <p class="text-slate-500 mb-8">Cari pasangan kartu yang sama sebelum waktu habis!</p>
@@ -114,9 +114,9 @@
             </div>
         </div>
 
-        <!-- Layar Permainan -->
+        
         <div id="game-screen" class="hidden">
-            <!-- Header Game (Stats) -->
+            
             <div class="flex justify-between items-center mb-6 pb-4 border-b border-slate-200">
                 <div class="flex gap-4 sm:gap-8">
                     <div>
@@ -133,13 +133,13 @@
                 </button>
             </div>
 
-            <!-- Area Grid Kartu -->
+            
             <div id="game-board" class="grid gap-3 mx-auto" style="grid-template-columns: repeat(4, minmax(0, 1fr));">
-                <!-- Kartu akan di-generate oleh JS disini -->
+                
             </div>
         </div>
 
-        <!-- Overlay Jeda (Menutupi kartu) -->
+        
         <div id="pause-overlay" class="hidden absolute inset-0 z-10 flex flex-col items-center justify-center">
             <h2 class="text-3xl font-bold text-slate-800 mb-6">Permainan Dijeda</h2>
             <div class="flex gap-4">
@@ -148,7 +148,7 @@
             </div>
         </div>
 
-        <!-- Layar Hasil (Menang/Kalah) -->
+        
         <div id="result-screen" class="hidden text-center py-8">
             <h2 id="result-title" class="text-4xl font-bold mb-2"></h2>
             <p id="result-message" class="text-lg text-slate-600 mb-8"></p>
@@ -172,17 +172,17 @@
     </div>
 
     <script>
-        // Kumpulan Emoji untuk kartu (Flat & tidak AI-ish)
+
         const EMOJIS = ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯'];
         
-        // Konfigurasi Kesulitan
+
         const DIFFICULTY_SETTINGS = {
             easy: { pairs: 6, time: 60, cols: 4, cardHeight: '100px' },
             medium: { pairs: 8, time: 90, cols: 4, cardHeight: '90px' },
             hard: { pairs: 10, time: 120, cols: 4, cardHeight: '80px' }
         };
 
-        // State Permainan
+
         let cards = [];
         let hasFlippedCard = false;
         let lockBoard = false;
@@ -194,7 +194,7 @@
         let isPaused = false;
         let currentSettings = null;
 
-        // Referensi Elemen DOM
+
         const startScreen = document.getElementById('start-screen');
         const gameScreen = document.getElementById('game-screen');
         const resultScreen = document.getElementById('result-screen');
@@ -204,7 +204,7 @@
         const movesDisplay = document.getElementById('moves-display');
         const pauseBtn = document.getElementById('pause-btn');
 
-        // Navigasi Layar
+
         function showStartScreen() {
             startScreen.classList.remove('hidden');
             gameScreen.classList.add('hidden');
@@ -213,7 +213,7 @@
             resetGameState();
         }
 
-        // Memulai Game
+
         function startGame(difficulty) {
             currentSettings = DIFFICULTY_SETTINGS[difficulty];
             startScreen.classList.add('hidden');
@@ -227,20 +227,20 @@
             startTimer();
         }
 
-        // Mengatur Papan Permainan
+
         function setupBoard() {
             gameBoard.innerHTML = '';
-            // Mengatur kolom CSS grid
+
             gameBoard.style.gridTemplateColumns = `repeat(${currentSettings.cols}, minmax(0, 1fr))`;
 
-            // Menyiapkan pasangan kartu
+
             let gameEmojis = EMOJIS.slice(0, currentSettings.pairs);
-            let cardDeck = [...gameEmojis, ...gameEmojis]; // Gandakan untuk pasangan
+            let cardDeck = [...gameEmojis, ...gameEmojis];
             
-            // Acak kartu (Fisher-Yates Shuffle)
+
             cardDeck.sort(() => Math.random() - 0.5);
 
-            // Membuat elemen kartu
+
             cardDeck.forEach((emoji, index) => {
                 const cardElement = document.createElement('div');
                 cardElement.classList.add('memory-card');
@@ -261,29 +261,29 @@
             cards = document.querySelectorAll('.memory-card');
         }
 
-        // Logika Membalik Kartu
+
         function flipCard() {
-            if (isPaused) return; // Tidak bisa klik saat jeda
+            if (isPaused) return;
             if (lockBoard) return;
             if (this === firstCard) return;
 
             this.classList.add('flip');
 
             if (!hasFlippedCard) {
-                // Klik pertama
+
                 hasFlippedCard = true;
                 firstCard = this;
                 return;
             }
 
-            // Klik kedua
+
             secondCard = this;
             moves++;
             movesDisplay.innerText = moves;
             checkForMatch();
         }
 
-        // Mengecek Kecocokan
+
         function checkForMatch() {
             let isMatch = firstCard.dataset.framework === secondCard.dataset.framework;
 
@@ -294,26 +294,26 @@
             }
         }
 
-        // Jika Cocok
+
         function disableCards() {
             firstCard.removeEventListener('click', flipCard);
             secondCard.removeEventListener('click', flipCard);
             
-            // Tambahkan class penanda (opsional untuk gaya visual flat)
+
             firstCard.classList.add('matched');
             secondCard.classList.add('matched');
 
             matchedPairs++;
             resetBoard();
 
-            // Cek Menang
+
             if (matchedPairs === currentSettings.pairs) {
                 clearInterval(timerInterval);
                 setTimeout(() => showResult(true), 500);
             }
         }
 
-        // Jika Tidak Cocok
+
         function unflipCards() {
             lockBoard = true;
 
@@ -321,16 +321,16 @@
                 firstCard.classList.remove('flip');
                 secondCard.classList.remove('flip');
                 resetBoard();
-            }, 1000); // Tunggu 1 detik sebelum balik lagi
+            }, 1000);
         }
 
-        // Reset state variabel untuk giliran berikutnya
+
         function resetBoard() {
             [hasFlippedCard, lockBoard] = [false, false];
             [firstCard, secondCard] = [null, null];
         }
 
-        // Mengatur Waktu / Timer
+
         function startTimer() {
             clearInterval(timerInterval);
             timerInterval = setInterval(() => {
@@ -359,7 +359,7 @@
             }
         }
 
-        // Sistem Jeda
+
         function togglePause() {
             isPaused = !isPaused;
             if (isPaused) {
@@ -371,13 +371,13 @@
             }
         }
 
-        // Keluar ke menu utama saat dijeda
+
         function quitGame() {
             clearInterval(timerInterval);
             showStartScreen();
         }
 
-        // Layar Hasil Akhir
+
         function showResult(isWin) {
             gameScreen.classList.add('hidden');
             resultScreen.classList.remove('hidden');
@@ -399,7 +399,7 @@
             }
         }
 
-        // Reset semua state ke 0
+
         function resetGameState() {
             matchedPairs = 0;
             moves = 0;
