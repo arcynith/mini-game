@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Minesweeper Klasik</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Gaya khusus yang bersih, flat, tanpa efek glow */
+        body {
+            background-color: #e5e7eb; /* Abu-abu terang */
+            touch-action: manipulation; /* Mencegah zoom ganda di HP */
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #333;
+        }
+
+        .board-container {
+            overflow-x: auto;
+            overflow-y: hidden;
+            -webkit-overflow-scrolling: touch;
+            padding: 4px;
+            background-color: #d1d5db;
+            border: 2px solid #9ca3af;
+        }
+
+        .grid-board {
+            display: grid;
+            gap: 1px;
+            background-color: #9ca3af; /* Warna garis grid */
+            margin: 0 auto;
+            width: max-content;
+        }
+
+        .cell {
+            width: 30px;
+            height: 30px;
+            background-color: #e5e7eb;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 16px;
+            cursor: pointer;
+            user-select: none;
+            /* Efek timbul klasik yang sangat tipis dan flat, TANPA glow */
+            border-top: 2px solid #ffffff;
+            border-left: 2px solid #ffffff;
+            border-right: 2px solid #9ca3af;
+            border-bottom: 2px solid #9ca3af;
+        }
+
+        .cell:active {
+            background-color: #d1d5db;
+            border: 1px solid #9ca3af;
+        }
+
+        .cell.revealed {
+            background-color: #d1d5db;
+            border: 1px solid #c1c5cb;
+            cursor: default;
+        }
+
+        /* Warna spesifik untuk angka tanpa glow */
+        .val-1 { color: #0000ff; }
+        .val-2 { color: #008000; }
+        .val-3 { color: #ff0000; }
+        .val-4 { color: #000080; }
+        .val-5 { color: #800000; }
+        .val-6 { color: #008080; }
+        .val-7 { color: #000000; }
+        .val-8 { color: #808080; }
+
+        /* Menyembunyikan papan saat pause */
+        .paused-overlay {
+            position: absolute;
+            inset: 0;
+            background-color: #d1d5db;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #4b5563;
+            z-index: 10;
+        }
+
+        /* Tombol flat bersih */
+        .btn-flat {
+            background-color: #f3f4f6;
+            border: 1px solid #9ca3af;
+            padding: 6px 12px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .btn-flat:active {
+            background-color: #e5e7eb;
+        }
+        .btn-active {
+            background-color: #d1d5db;
+            border: 1px inset #9ca3af;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center py-6">
+
+    <div class="w-full max-w-3xl px-4 flex flex-col gap-4 relative">
+        <!-- Header & Kontrol -->
+        <div class="bg-gray-200 p-4 border-2 border-gray-400 flex flex-col md:flex-row justify-between items-center gap-4">
+            
+            <div class="flex items-center gap-2 w-full md:w-auto justify-between">
+                <select id="difficulty" class="bg-gray-100 border border-gray-400 p-1 text-sm outline-none" onchange="changeDifficulty()">
+                    <option value="easy">Mudah (9x9, 10 Ranjau)</option>
+                    <option value="medium">Sedang (16x16, 40 Ranjau)</option>
+                    <option value="hard">Sulit (30x16, 99 Ranjau)</option>
+                </select>
+                <button id="pauseBtn" class="btn-flat text-sm" onclick="togglePause()">Jeda</button>
+            </div>
+
+            <!-- Mobile Action Toggle (Gali / Bendera) -->
+            <div class="flex items-center border border-gray-400 bg-gray-100 w-full md:w-auto">
+                <button id="modeDig" class="flex-1 md:flex-none px-4 py-1 text-sm btn-active" onclick="setMode('dig')">⛏️ Gali</button>
+                <button id="modeFlag" class="flex-1 md:flex-none px-4 py-1 text-sm" onclick="setMode('flag')">🚩 Tandai</button>
+            </div>
+
+        </div>
+
+        <!-- Panel Status -->
+        <div class="bg-gray-300 border-2 border-gray-400 p-3 flex justify-between items-center font-mono text-xl">
+            <div class="bg-black text-red-500 px-2 border-2 border-gray-500 min-w-[3rem] text-center" id="mineCount">000</div>
+            <button id="resetBtn" class="btn-flat text-2xl px-3 py-1 flex items-center justify-center" onclick="initGame()">🙂</button>
+            <div class="bg-black text-red-500 px-2 border-2 border-gray-500 min-w-[3rem] text-center" id="timer">000</div>
+        </div>
+
+        <!-- Papan Game -->
+        <div class="board-container relative">
+            <div id="board" class="grid-board"></div>
+            <div id="pauseOverlay" class="paused-overlay hidden">
+                GAME DIJEDA
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Konfigurasi Kesulitan
+        const config = {
+            easy: { rows: 9, cols: 9, mines: 10 },
+            medium: { rows: 16, cols: 16, mines: 40 },
+            hard: { rows: 16, cols: 30, mines: 99 } // 30 kolom, 16 baris standar desktop klasik
+        };
+
+        let currentDiff = 'easy';
+        let rows, cols, totalMines;
+        let boardData = [];
+        let firstClick = true;
+        let gameOver = false;
+        let flagsPlaced = 0;
+        let cellsRevealed = 0;
+        
+        // Timer & Pause
+        let timerId = null;
+        let timeElapsed = 0;
+        let isPaused = false;
+        
+        // Mode Kontrol (Terutama untuk mobile)
+        let currentMode = 'dig'; // 'dig' atau 'flag'
+
+        const boardEl = document.getElementById('board');
+        const mineCountEl = document.getElementById('mineCount');
+        const timerEl = document.getElementById('timer');
+        const resetBtn = document.getElementById('resetBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const pauseOverlay = document.getElementById('pauseOverlay');
+
+        function formatNumber(num) {
+            if (num < -99) return "-99";
+            if (num < 0) return "-" + Math.abs(num).toString().padStart(2, '0');
+            return num.toString().padStart(3, '0');
+        }
+
+        function setMode(mode) {
+            currentMode = mode;
+            document.getElementById('modeDig').className = mode === 'dig' ? 'flex-1 md:flex-none px-4 py-1 text-sm btn-active' : 'flex-1 md:flex-none px-4 py-1 text-sm';
+            document.getElementById('modeFlag').className = mode === 'flag' ? 'flex-1 md:flex-none px-4 py-1 text-sm btn-active' : 'flex-1 md:flex-none px-4 py-1 text-sm';
+        }
+
+        function changeDifficulty() {
+            currentDiff = document.getElementById('difficulty').value;
+            initGame();
+        }
+
+        function initGame() {
+            clearInterval(timerId);
+            const settings = config[currentDiff];
+            rows = settings.rows;
+            cols = settings.cols;
+            totalMines = settings.mines;
+
+            boardData = [];
+            firstClick = true;
+            gameOver = false;
+            flagsPlaced = 0;
+            cellsRevealed = 0;
+            timeElapsed = 0;
+            isPaused = false;
+            
+            pauseOverlay.classList.add('hidden');
+            pauseBtn.innerText = "Jeda";
+            pauseBtn.disabled = false;
+            resetBtn.innerText = "🙂";
+            mineCountEl.innerText = formatNumber(totalMines);
+            timerEl.innerText = "000";
+
+            renderBoard();
+        }
+
+        function renderBoard() {
+            boardEl.innerHTML = '';
+            boardEl.style.gridTemplateColumns = `repeat(${cols}, 30px)`;
+            boardEl.style.gridTemplateRows = `repeat(${rows}, 30px)`;
+
+            for (let r = 0; r < rows; r++) {
+                boardData[r] = [];
+                for (let c = 0; c < cols; c++) {
+                    boardData[r][c] = {
+                        isMine: false,
+                        isRevealed: false,
+                        isFlagged: false,
+                        neighborMines: 0
+                    };
+
+                    const cellEl = document.createElement('div');
+                    cellEl.className = 'cell';
+                    cellEl.dataset.r = r;
+                    cellEl.dataset.c = c;
+
+                    // Event Listeners
+                    cellEl.addEventListener('click', () => handleCellClick(r, c));
+                    cellEl.addEventListener('contextmenu', (e) => {
+                        e.preventDefault(); // Mencegah menu klik kanan muncul
+                        handleRightClick(r, c);
+                    });
+
+                    boardEl.appendChild(cellEl);
+                }
+            }
+        }
+
+        function startTimer() {
+            if (timerId) clearInterval(timerId);
+            timerId = setInterval(() => {
+                if (!isPaused && !gameOver) {
+                    timeElapsed++;
+                    if (timeElapsed > 999) timeElapsed = 999;
+                    timerEl.innerText = formatNumber(timeElapsed);
+                }
+            }, 1000);
+        }
+
+        function togglePause() {
+            if (gameOver || firstClick) return;
+            isPaused = !isPaused;
+            if (isPaused) {
+                pauseOverlay.classList.remove('hidden');
+                pauseBtn.innerText = "Lanjut";
+            } else {
+                pauseOverlay.classList.add('hidden');
+                pauseBtn.innerText = "Jeda";
+            }
+        }
+
+        function placeMines(firstR, firstC) {
+            let minesPlaced = 0;
+            while (minesPlaced < totalMines) {
+                const r = Math.floor(Math.random() * rows);
+                const c = Math.floor(Math.random() * cols);
+                
+                // Mencegah ranjau di klik pertama dan area sekitarnya untuk memastikan awal yang aman
+                const isSafeZone = Math.abs(r - firstR) <= 1 && Math.abs(c - firstC) <= 1;
+
+                if (!boardData[r][c].isMine && !isSafeZone) {
+                    boardData[r][c].isMine = true;
+                    minesPlaced++;
+                }
+            }
+            calculateNeighbors();
+        }
+
+        function calculateNeighbors() {
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    if (boardData[r][c].isMine) continue;
+                    let count = 0;
+                    for (let i = -1; i <= 1; i++) {
+                        for (let j = -1; j <= 1; j++) {
+                            const nr = r + i;
+                            const nc = c + j;
+                            if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && boardData[nr][nc].isMine) {
+                                count++;
+                            }
+                        }
+                    }
+                    boardData[r][c].neighborMines = count;
+                }
+            }
+        }
+
+        function getCellEl(r, c) {
+            return boardEl.children[r * cols + c];
+        }
+
+        function handleCellClick(r, c) {
+            if (gameOver || isPaused) return;
+
+            if (currentMode === 'flag') {
+                handleRightClick(r, c);
+                return;
+            }
+
+            const cell = boardData[r][c];
+            if (cell.isRevealed || cell.isFlagged) return;
+
+            if (firstClick) {
+                placeMines(r, c);
+                startTimer();
+                firstClick = false;
+            }
+
+            if (cell.isMine) {
+                triggerGameOver(false, r, c);
+            } else {
+                revealCell(r, c);
+                checkWinCondition();
+            }
+        }
+
+        function handleRightClick(r, c) {
+            if (gameOver || isPaused || firstClick) return;
+            
+            const cell = boardData[r][c];
+            if (cell.isRevealed) return;
+
+            cell.isFlagged = !cell.isFlagged;
+            flagsPlaced += cell.isFlagged ? 1 : -1;
+            mineCountEl.innerText = formatNumber(totalMines - flagsPlaced);
+
+            const cellEl = getCellEl(r, c);
+            cellEl.innerText = cell.isFlagged ? '🚩' : '';
+        }
+
+        function revealCell(r, c) {
+            const cell = boardData[r][c];
+            if (cell.isRevealed || cell.isFlagged) return;
+
+            cell.isRevealed = true;
+            cellsRevealed++;
+            
+            const cellEl = getCellEl(r, c);
+            cellEl.classList.add('revealed');
+            
+            // Hapus gaya batas 3D
+            cellEl.style.border = '1px solid #c1c5cb';
+
+            if (cell.neighborMines > 0) {
+                cellEl.innerText = cell.neighborMines;
+                cellEl.classList.add(`val-${cell.neighborMines}`);
+            } else {
+                // Flood fill area kosong
+                for (let i = -1; i <= 1; i++) {
+                    for (let j = -1; j <= 1; j++) {
+                        const nr = r + i;
+                        const nc = c + j;
+                        if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
+                            revealCell(nr, nc);
+                        }
+                    }
+                }
+            }
+        }
+
+        function checkWinCondition() {
+            if (cellsRevealed === (rows * cols) - totalMines) {
+                triggerGameOver(true);
+            }
+        }
+
+        function triggerGameOver(isWin, deathR = -1, deathC = -1) {
+            gameOver = true;
+            clearInterval(timerId);
+            pauseBtn.disabled = true;
+            
+            if (isWin) {
+                resetBtn.innerText = "😎";
+                mineCountEl.innerText = "000";
+            } else {
+                resetBtn.innerText = "😵";
+            }
+
+            // Buka semua ranjau
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const cell = boardData[r][c];
+                    const cellEl = getCellEl(r, c);
+
+                    if (isWin && cell.isMine && !cell.isFlagged) {
+                        cellEl.innerText = '🚩'; // Tandai otomatis sisa ranjau kalau menang
+                    } 
+                    else if (!isWin) {
+                        if (cell.isMine && !cell.isFlagged) {
+                            cellEl.classList.add('revealed');
+                            cellEl.innerText = '💣';
+                            if (r === deathR && c === deathC) {
+                                cellEl.style.backgroundColor = '#ef4444'; // Merah pekat tanpa glow untuk ranjau yang meledak
+                            }
+                        } else if (!cell.isMine && cell.isFlagged) {
+                            // Tebakan salah
+                            cellEl.innerText = '❌';
+                        }
+                    }
+                }
+            }
+        }
+
+        // Inisialisasi awal
+        initGame();
+    </script>
+</body>
+</html>

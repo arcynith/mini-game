@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Snake Klasik</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Desain bersih tanpa glow, fokus pada warna solid dan border tegas */
+        body {
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            touch-action: none; /* Mencegah scroll saat swipe di mobile */
+            overflow: hidden;
+        }
+
+        #game-container {
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        canvas {
+            background-color: #a2d149;
+            image-rendering: pixelated; /* Agar grafis tetap tajam tanpa blur */
+            border: 4px solid #34495e;
+            border-radius: 8px;
+            width: 100%;
+            height: auto;
+            aspect-ratio: 1 / 1;
+            display: block;
+        }
+
+        /* Kontrol Mobile (D-Pad) bergaya solid/flat */
+        .d-pad-btn {
+            background-color: #34495e;
+            color: white;
+            border: 2px solid #2c3e50;
+            border-radius: 8px;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+        }
+        .d-pad-btn:active {
+            background-color: #2980b9;
+        }
+
+        .modal-overlay {
+            background-color: rgba(44, 62, 80, 0.9);
+        }
+
+        /* Styling Modal Box Flat */
+        .flat-box {
+            background-color: #ecf0f1;
+            color: #2c3e50;
+            border: 4px solid #34495e;
+            border-radius: 8px;
+            box-shadow: 8px 8px 0px #1a252f; /* Solid shadow, bukan blur/glow */
+        }
+
+        button.flat-btn {
+            background-color: #27ae60;
+            color: white;
+            border: 2px solid #2ecc71;
+            border-radius: 4px;
+            transition: all 0.1s;
+        }
+        button.flat-btn:hover, button.flat-btn:active {
+            background-color: #2ecc71;
+            transform: translateY(2px);
+        }
+        button.flat-btn-danger {
+            background-color: #c0392b;
+            border-color: #e74c3c;
+        }
+        button.flat-btn-danger:hover, button.flat-btn-danger:active {
+            background-color: #e74c3c;
+        }
+        
+        .difficulty-btn {
+            background-color: #95a5a6;
+            color: #2c3e50;
+            border: 2px solid #7f8c8d;
+        }
+        .difficulty-btn.active {
+            background-color: #f39c12;
+            border-color: #e67e22;
+            color: white;
+        }
+
+        /* Sembunyikan d-pad di layar besar (Desktop) */
+        @media (min-width: 600px) {
+            #mobile-controls {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col items-center justify-center">
+
+    <div id="game-container" class="w-full px-4 relative flex flex-col h-full justify-center">
+        
+        <!-- Header Info -->
+        <div class="flex justify-between items-end mb-2 px-1">
+            <div>
+                <p class="text-sm font-bold text-gray-400 uppercase tracking-wide">Skor</p>
+                <p id="score-display" class="text-3xl font-black leading-none">0</p>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="text-right">
+                    <p class="text-xs font-bold text-gray-400 uppercase tracking-wide">Tertinggi (<span id="diff-label">Sedang</span>)</p>
+                    <p id="high-score-display" class="text-xl font-bold leading-none text-yellow-500">0</p>
+                </div>
+                <button id="btn-pause-ui" class="bg-gray-700 hover:bg-gray-600 p-2 rounded border-2 border-gray-800 focus:outline-none hidden">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Area Canvas -->
+        <canvas id="gameCanvas" width="400" height="400"></canvas>
+
+        <!-- Kontrol D-Pad untuk Mobile -->
+        <div id="mobile-controls" class="grid grid-cols-3 gap-2 w-48 mx-auto mt-6">
+            <div></div>
+            <button class="d-pad-btn h-12" id="btn-up">▲</button>
+            <div></div>
+            <button class="d-pad-btn h-12" id="btn-left">◀</button>
+            <button class="d-pad-btn h-12" id="btn-down">▼</button>
+            <button class="d-pad-btn h-12" id="btn-right">▶</button>
+        </div>
+
+        <!-- Modal: Menu Utama -->
+        <div id="menu-modal" class="modal-overlay absolute inset-0 z-10 flex items-center justify-center px-4">
+            <div class="flat-box w-full max-w-sm p-6 text-center">
+                <h1 class="text-3xl font-black mb-6 uppercase tracking-wider">Snake</h1>
+                
+                <div class="mb-6 text-left">
+                    <p class="text-sm font-bold mb-2 uppercase text-gray-600">Pilih Kesulitan:</p>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button class="difficulty-btn py-2 rounded font-bold text-sm" data-diff="easy">Mudah</button>
+                        <button class="difficulty-btn py-2 rounded font-bold text-sm active" data-diff="medium">Sedang</button>
+                        <button class="difficulty-btn py-2 rounded font-bold text-sm" data-diff="hard">Sulit</button>
+                    </div>
+                </div>
+
+                <button id="btn-start" class="flat-btn w-full py-3 text-lg font-bold uppercase tracking-wider">Mulai Main</button>
+                <p class="text-xs text-gray-500 mt-4 font-semibold">Gunakan panah (Keyboard), usap layar, atau tombol untuk bergerak.</p>
+            </div>
+        </div>
+
+        <!-- Modal: Jeda (Pause) -->
+        <div id="pause-modal" class="modal-overlay absolute inset-0 z-20 flex items-center justify-center hidden">
+            <div class="flat-box w-64 p-6 text-center">
+                <h2 class="text-2xl font-black mb-4 uppercase">Dijeda</h2>
+                <button id="btn-resume" class="flat-btn w-full py-2 mb-3 font-bold uppercase">Lanjutkan</button>
+                <button id="btn-quit-pause" class="flat-btn flat-btn-danger w-full py-2 font-bold uppercase">Menu Utama</button>
+            </div>
+        </div>
+
+        <!-- Modal: Game Over -->
+        <div id="game-over-modal" class="modal-overlay absolute inset-0 z-20 flex items-center justify-center hidden px-4">
+            <div class="flat-box w-full max-w-sm p-6 text-center">
+                <h2 class="text-3xl font-black text-red-600 mb-2 uppercase">Tabrakan!</h2>
+                <div class="bg-gray-200 rounded p-4 mb-6">
+                    <p class="text-sm font-bold text-gray-600 uppercase">Skor Akhir</p>
+                    <p id="final-score" class="text-4xl font-black text-gray-800">0</p>
+                </div>
+                <button id="btn-restart" class="flat-btn w-full py-3 text-lg font-bold uppercase mb-2">Main Lagi</button>
+                <button id="btn-menu-go" class="w-full py-2 text-sm font-bold text-gray-500 hover:text-gray-800 uppercase underline">Ganti Kesulitan</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- KONFIGURASI & VARIABEL STATE ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Ukuran grid (20x20 kotak)
+        const tileCount = 20;
+        const tileSize = canvas.width / tileCount;
+
+        // State Permainan
+        let snake = [];
+        let food = { x: 0, y: 0 };
+        let dx = 0;
+        let dy = 0;
+        let nextDx = 0; // Buffer input agar tidak bisa berbalik instan
+        let nextDy = 0;
+        let score = 0;
+        let difficulty = 'medium'; // easy, medium, hard
+        let gameLoopTimeout;
+        let isPlaying = false;
+        let isPaused = false;
+
+        // Pengaturan Kesulitan (Kecepatan dalam milidetik per frame)
+        const speeds = {
+            easy: 150,
+            medium: 100,
+            hard: 60
+        };
+
+        // --- ELEMEN UI ---
+        const scoreDisplay = document.getElementById('score-display');
+        const highScoreDisplay = document.getElementById('high-score-display');
+        const diffLabel = document.getElementById('diff-label');
+        const finalScoreDisplay = document.getElementById('final-score');
+        
+        // Modals
+        const menuModal = document.getElementById('menu-modal');
+        const pauseModal = document.getElementById('pause-modal');
+        const gameOverModal = document.getElementById('gameOver-modal'); // typo id fix di query selector
+        const gameOverBox = document.getElementById('game-over-modal');
+
+        // Buttons
+        const btnStart = document.getElementById('btn-start');
+        const btnResume = document.getElementById('btn-resume');
+        const btnQuitPause = document.getElementById('btn-quit-pause');
+        const btnRestart = document.getElementById('btn-restart');
+        const btnMenuGo = document.getElementById('btn-menu-go');
+        const btnPauseUI = document.getElementById('btn-pause-ui');
+        const diffBtns = document.querySelectorAll('.difficulty-btn');
+
+        // D-pad
+        const btnUp = document.getElementById('btn-up');
+        const btnDown = document.getElementById('btn-down');
+        const btnLeft = document.getElementById('btn-left');
+        const btnRight = document.getElementById('btn-right');
+
+        // --- INISIALISASI ---
+        function init() {
+            loadHighScore();
+            drawBoard(); // Gambar papan kosong di awal
+        }
+
+        function startGame() {
+            // Reset Ular ke tengah
+            snake = [
+                { x: 10, y: 10 },
+                { x: 10, y: 11 },
+                { x: 10, y: 12 }
+            ];
+            
+            // Arah awal ke atas
+            dx = 0;
+            dy = -1;
+            nextDx = 0;
+            nextDy = -1;
+            
+            score = 0;
+            updateScore();
+            placeFood();
+            
+            isPlaying = true;
+            isPaused = false;
+            
+            // Sembunyikan semua menu
+            menuModal.classList.add('hidden');
+            gameOverBox.classList.add('hidden');
+            pauseModal.classList.add('hidden');
+            btnPauseUI.classList.remove('hidden'); // Tampilkan tombol pause di header
+            
+            clearTimeout(gameLoopTimeout);
+            gameLoop();
+        }
+
+        // --- LOGIKA UTAMA PERMAINAN ---
+        function gameLoop() {
+            if (isPaused || !isPlaying) return;
+
+            update();
+            draw();
+
+            if (isPlaying) {
+                gameLoopTimeout = setTimeout(gameLoop, speeds[difficulty]);
+            }
+        }
+
+        function update() {
+            // Terapkan input tertunda
+            dx = nextDx;
+            dy = nextDy;
+
+            // Hitung posisi kepala baru
+            const head = { x: snake[0].x + dx, y: snake[0].y + dy };
+
+            // Deteksi tabrakan dengan tembok
+            if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount) {
+                gameOver();
+                return;
+            }
+
+            // Deteksi tabrakan dengan diri sendiri
+            for (let i = 0; i < snake.length; i++) {
+                if (head.x === snake[i].x && head.y === snake[i].y) {
+                    gameOver();
+                    return;
+                }
+            }
+
+            // Masukkan kepala baru
+            snake.unshift(head);
+
+            // Cek apakah makan makanan
+            if (head.x === food.x && head.y === food.y) {
+                score += 10;
+                updateScore();
+                placeFood();
+            } else {
+                // Hapus ekor jika tidak makan
+                snake.pop();
+            }
+        }
+
+        function draw() {
+            drawBoard();
+            drawFood();
+            drawSnake();
+        }
+
+        // --- FUNGSI MENGGAMBAR ---
+        function drawBoard() {
+            // Papan catur hijau tanpa glow
+            const color1 = "#a2d149";
+            const color2 = "#aad751";
+
+            for (let y = 0; y < tileCount; y++) {
+                for (let x = 0; x < tileCount; x++) {
+                    ctx.fillStyle = (x + y) % 2 === 0 ? color1 : color2;
+                    ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
+                }
+            }
+        }
+
+        function drawSnake() {
+            snake.forEach((segment, index) => {
+                // Warna solid untuk ular. Kepala sedikit lebih gelap.
+                ctx.fillStyle = index === 0 ? "#3867d6" : "#4b7bec";
+                
+                // Menggambar blok solid, memberi jarak 1px agar terlihat terpisah-pisah gaya retro
+                ctx.fillRect(segment.x * tileSize + 1, segment.y * tileSize + 1, tileSize - 2, tileSize - 2);
+                
+                // Mata ular untuk kepala
+                if (index === 0) {
+                    ctx.fillStyle = "white";
+                    // Mata berdasarkan arah
+                    let eye1X, eye1Y, eye2X, eye2Y;
+                    const eyeSize = 4;
+                    const offset = 4;
+                    
+                    if (dx === 1) { // Kanan
+                        eye1X = segment.x * tileSize + tileSize - offset - eyeSize;
+                        eye1Y = segment.y * tileSize + offset;
+                        eye2X = eye1X;
+                        eye2Y = segment.y * tileSize + tileSize - offset - eyeSize;
+                    } else if (dx === -1) { // Kiri
+                        eye1X = segment.x * tileSize + offset;
+                        eye1Y = segment.y * tileSize + offset;
+                        eye2X = eye1X;
+                        eye2Y = segment.y * tileSize + tileSize - offset - eyeSize;
+                    } else if (dy === 1) { // Bawah
+                        eye1X = segment.x * tileSize + offset;
+                        eye1Y = segment.y * tileSize + tileSize - offset - eyeSize;
+                        eye2X = segment.x * tileSize + tileSize - offset - eyeSize;
+                        eye2Y = eye1Y;
+                    } else { // Atas (Default)
+                        eye1X = segment.x * tileSize + offset;
+                        eye1Y = segment.y * tileSize + offset;
+                        eye2X = segment.x * tileSize + tileSize - offset - eyeSize;
+                        eye2Y = eye1Y;
+                    }
+                    
+                    ctx.fillRect(eye1X, eye1Y, eyeSize, eyeSize);
+                    ctx.fillRect(eye2X, eye2Y, eyeSize, eyeSize);
+                }
+            });
+        }
+
+        function drawFood() {
+            // Makanan berbentuk apel merah solid
+            ctx.fillStyle = "#eb3b5a";
+            ctx.beginPath();
+            const centerX = food.x * tileSize + tileSize / 2;
+            const centerY = food.y * tileSize + tileSize / 2;
+            const radius = tileSize / 2 - 2;
+            ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Daun apel kecil hijau
+            ctx.fillStyle = "#20bf6b";
+            ctx.beginPath();
+            ctx.arc(centerX + 2, centerY - radius, 3, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // --- UTILITAS ---
+        function placeFood() {
+            let valid = false;
+            while (!valid) {
+                food.x = Math.floor(Math.random() * tileCount);
+                food.y = Math.floor(Math.random() * tileCount);
+                valid = true;
+                // Pastikan tidak muncul di tubuh ular
+                for (let segment of snake) {
+                    if (segment.x === food.x && segment.y === food.y) {
+                        valid = false;
+                        break;
+                    }
+                }
+            }
+        }
+
+        function gameOver() {
+            isPlaying = false;
+            btnPauseUI.classList.add('hidden');
+            finalScoreDisplay.innerText = score;
+            saveHighScore();
+            gameOverBox.classList.remove('hidden');
+        }
+
+        function togglePause() {
+            if (!isPlaying) return;
+            isPaused = !isPaused;
+            if (isPaused) {
+                pauseModal.classList.remove('hidden');
+            } else {
+                pauseModal.classList.add('hidden');
+                gameLoop(); // Lanjutkan loop
+            }
+        }
+
+        function updateScore() {
+            scoreDisplay.innerText = score;
+        }
+
+        function loadHighScore() {
+            const saved = localStorage.getItem(`snakeHighScore_${difficulty}`);
+            highScoreDisplay.innerText = saved ? saved : '0';
+        }
+
+        function saveHighScore() {
+            const currentHigh = parseInt(localStorage.getItem(`snakeHighScore_${difficulty}`)) || 0;
+            if (score > currentHigh) {
+                localStorage.setItem(`snakeHighScore_${difficulty}`, score);
+                loadHighScore();
+            }
+        }
+
+        function setDifficulty(level) {
+            difficulty = level;
+            // Update UI Button
+            diffBtns.forEach(btn => {
+                if(btn.dataset.diff === level) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+            // Update Label
+            const labels = {easy: 'Mudah', medium: 'Sedang', hard: 'Sulit'};
+            diffLabel.innerText = labels[level];
+            loadHighScore();
+        }
+
+        // --- SISTEM INPUT ---
+        function changeDirection(newDx, newDy) {
+            // Cegah mundur (bunuh diri instan)
+            // Gunakan dx, dy saat ini sebagai perbandingan, atau nextDx, nextDy jika user menekan cepat berurutan
+            if (dx === 0 && newDx !== 0) { // Sedang vertikal, boleh ke horizontal
+                nextDx = newDx;
+                nextDy = newDy;
+            } else if (dy === 0 && newDy !== 0) { // Sedang horizontal, boleh ke vertikal
+                nextDx = newDx;
+                nextDy = newDy;
+            }
+        }
+
+        // 1. Keyboard
+        document.addEventListener('keydown', (e) => {
+            if (!isPlaying) return;
+            
+            switch (e.key) {
+                case 'ArrowUp':
+                case 'w':
+                case 'W':
+                    changeDirection(0, -1);
+                    break;
+                case 'ArrowDown':
+                case 's':
+                case 'S':
+                    changeDirection(0, 1);
+                    break;
+                case 'ArrowLeft':
+                case 'a':
+                case 'A':
+                    changeDirection(-1, 0);
+                    break;
+                case 'ArrowRight':
+                case 'd':
+                case 'D':
+                    changeDirection(1, 0);
+                    break;
+                case 'Escape':
+                case 'p':
+                case 'P':
+                    togglePause();
+                    break;
+            }
+        });
+
+        // 2. Layar Sentuh / Swipe
+        let touchStartX = 0;
+        let touchStartY = 0;
+
+        canvas.addEventListener('touchstart', (e) => {
+            touchStartX = e.changedTouches[0].screenX;
+            touchStartY = e.changedTouches[0].screenY;
+            e.preventDefault(); // cegah scroll
+        }, {passive: false});
+
+        canvas.addEventListener('touchend', (e) => {
+            if(!isPlaying || isPaused) return;
+            const touchEndX = e.changedTouches[0].screenX;
+            const touchEndY = e.changedTouches[0].screenY;
+            handleSwipe(touchStartX, touchStartY, touchEndX, touchEndY);
+            e.preventDefault();
+        }, {passive: false});
+
+        function handleSwipe(startX, startY, endX, endY) {
+            const diffX = endX - startX;
+            const diffY = endY - startY;
+            const absDiffX = Math.abs(diffX);
+            const absDiffY = Math.abs(diffY);
+
+            // Minimum jarak swipe (mencegah klik biasa dianggap swipe)
+            if (Math.max(absDiffX, absDiffY) < 30) return;
+
+            if (absDiffX > absDiffY) {
+                // Horizontal
+                if (diffX > 0) changeDirection(1, 0); // Kanan
+                else changeDirection(-1, 0); // Kiri
+            } else {
+                // Vertikal
+                if (diffY > 0) changeDirection(0, 1); // Bawah
+                else changeDirection(0, -1); // Atas
+            }
+        }
+
+        // 3. Tombol D-Pad Mobile
+        btnUp.addEventListener('touchstart', (e) => { changeDirection(0, -1); e.preventDefault(); });
+        btnDown.addEventListener('touchstart', (e) => { changeDirection(0, 1); e.preventDefault(); });
+        btnLeft.addEventListener('touchstart', (e) => { changeDirection(-1, 0); e.preventDefault(); });
+        btnRight.addEventListener('touchstart', (e) => { changeDirection(1, 0); e.preventDefault(); });
+        
+        // Fallback untuk klik mouse di desktop (jika devtools mobile dihidupkan)
+        btnUp.addEventListener('mousedown', () => changeDirection(0, -1));
+        btnDown.addEventListener('mousedown', () => changeDirection(0, 1));
+        btnLeft.addEventListener('mousedown', () => changeDirection(-1, 0));
+        btnRight.addEventListener('mousedown', () => changeDirection(1, 0));
+
+
+        // --- EVENT LISTENER UI ---
+        btnStart.addEventListener('click', startGame);
+        btnRestart.addEventListener('click', startGame);
+        btnPauseUI.addEventListener('click', togglePause);
+        btnResume.addEventListener('click', togglePause);
+        
+        btnQuitPause.addEventListener('click', () => {
+            isPaused = false;
+            isPlaying = false;
+            pauseModal.classList.add('hidden');
+            menuModal.classList.remove('hidden');
+            drawBoard(); // Reset visual
+        });
+
+        btnMenuGo.addEventListener('click', () => {
+            gameOverBox.classList.add('hidden');
+            menuModal.classList.remove('hidden');
+            drawBoard();
+        });
+
+        diffBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                setDifficulty(e.target.dataset.diff);
+            });
+        });
+
+        // Jalankan saat pertama dimuat
+        init();
+
+    </script>
+</body>
+</html>

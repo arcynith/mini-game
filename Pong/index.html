@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pong Klasik</title>
+    <style>
+        /* Desain Flat Klasik, Tanpa Efek Glow */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        body {
+            background-color: #000;
+            color: #fff;
+            overflow: hidden;
+            touch-action: none; /* Mencegah layar tertarik di mobile */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            max-width: 1000px; /* Batas maksimal di PC */
+            max-height: 750px;
+            border: 2px solid #fff;
+            background-color: #000;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Sistem UI Lapis */
+        .ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: rgba(0, 0, 0, 0.85); /* Latar belakang solid transparan */
+            z-index: 10;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 2rem;
+            text-transform: uppercase;
+            letter-spacing: 5px;
+            text-align: center;
+        }
+
+        h2 {
+            font-size: 2rem;
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+
+        p.score-display {
+            font-size: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        button {
+            background-color: #000;
+            color: #fff;
+            border: 2px solid #fff;
+            padding: 15px 30px;
+            margin: 10px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            min-width: 200px;
+            transition: background-color 0.1s, color 0.1s;
+        }
+
+        button:hover, button:active {
+            background-color: #fff;
+            color: #000;
+        }
+
+        /* Tombol Pause di pojok layar */
+        #pause-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            padding: 10px 15px;
+            min-width: auto;
+            font-size: 1rem;
+            z-index: 5;
+        }
+
+        /* Garis tengah retro */
+        #center-line {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 4px;
+            height: 100%;
+            background: repeating-linear-gradient(
+                to bottom,
+                #fff 0,
+                #fff 20px,
+                transparent 20px,
+                transparent 40px
+            );
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        #score-board {
+            position: absolute;
+            top: 20px;
+            width: 100%;
+            display: flex;
+            justify-content: space-around;
+            font-size: 4rem;
+            font-weight: bold;
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        #countdown-display {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 6rem;
+            font-weight: bold;
+            z-index: 4;
+            pointer-events: none;
+            text-align: center;
+        }
+
+        @media (max-width: 600px) {
+            h1 { font-size: 2rem; }
+            button { padding: 10px 20px; font-size: 1rem; min-width: 150px; }
+            #score-board { font-size: 2.5rem; top: 10px; }
+            #pause-btn { padding: 8px 12px; font-size: 0.8rem; top: 10px; right: 10px; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="center-line"></div>
+    <div id="score-board">
+        <span id="score-player">0</span>
+        <span id="score-ai">0</span>
+    </div>
+    
+    <div id="countdown-display" class="hidden">3</div>
+
+    <button id="pause-btn" class="hidden">JEDA (II)</button>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Menu Utama -->
+    <div id="menu-screen" class="ui-layer">
+        <h1>PONG KLASIK</h1>
+        <h2>Pilih Kesulitan:</h2>
+        <button onclick="startGame('EASY')">Mudah</button>
+        <button onclick="startGame('MEDIUM')">Normal</button>
+        <button onclick="startGame('HARD')">Sulit</button>
+    </div>
+
+    <!-- Menu Jeda -->
+    <div id="pause-screen" class="ui-layer hidden">
+        <h1>DIJEDA</h1>
+        <button onclick="resumeGame()">Lanjutkan</button>
+        <button onclick="backToMenu()">Kembali ke Menu</button>
+    </div>
+
+    <!-- Layar Game Over -->
+    <div id="game-over-screen" class="ui-layer hidden">
+        <h1 id="winner-text">KAMU MENANG!</h1>
+        <p class="score-display">Skor Akhir: <span id="final-score">0 - 0</span></p>
+        <button onclick="backToMenu()">Main Lagi</button>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // UI Elements
+    const menuScreen = document.getElementById('menu-screen');
+    const pauseScreen = document.getElementById('pause-screen');
+    const gameOverScreen = document.getElementById('game-over-screen');
+    const pauseBtn = document.getElementById('pause-btn');
+    const scorePlayerEl = document.getElementById('score-player');
+    const scoreAiEl = document.getElementById('score-ai');
+    const centerLine = document.getElementById('center-line');
+    const scoreBoard = document.getElementById('score-board');
+    const countdownEl = document.getElementById('countdown-display');
+
+    // Resolusi Logika Game (Tetap stabil meski layar di-resize)
+    const LOGICAL_WIDTH = 800;
+    const LOGICAL_HEIGHT = 600;
+
+    let gameState = 'MENU'; // MENU, PLAYING, PAUSED, GAMEOVER, COUNTDOWN
+    let animationId;
+    let maxScore = 5; // Poin untuk menang
+    let countdownInterval = null;
+    let countdownValue = 0;
+
+    // Parameter Kesulitan
+    const difficulties = {
+        EASY: { aiSpeed: 3, ballSpeed: 6 },
+        MEDIUM: { aiSpeed: 5, ballSpeed: 8 },
+        HARD: { aiSpeed: 8, ballSpeed: 11 }
+    };
+    let currentDifficulty = 'MEDIUM';
+
+    // Objek Game
+    const player = { x: 20, y: 0, width: 15, height: 100, score: 0 };
+    const ai = { x: LOGICAL_WIDTH - 35, y: 0, width: 15, height: 100, score: 0 };
+    const ball = { x: LOGICAL_WIDTH / 2, y: LOGICAL_HEIGHT / 2, radius: 10, speed: 7, velocityX: 5, velocityY: 5 };
+
+    // Set ukuran canvas agar menyesuaikan kontainer
+    function resizeCanvas() {
+        const container = document.getElementById('game-container');
+        canvas.width = container.clientWidth;
+        canvas.height = container.clientHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // Fungsi Reset
+    function resetBall() {
+        ball.x = LOGICAL_WIDTH / 2;
+        ball.y = LOGICAL_HEIGHT / 2;
+        ball.speed = difficulties[currentDifficulty].ballSpeed;
+        ball.velocityX = (Math.random() > 0.5 ? 1 : -1) * ball.speed;
+        ball.velocityY = (Math.random() * 2 - 1) * ball.speed;
+        if(ball.velocityY === 0) ball.velocityY = 2; // Mencegah bola bergerak lurus secara horizontal
+    }
+
+    function resetGame() {
+        player.score = 0;
+        ai.score = 0;
+        player.y = (LOGICAL_HEIGHT - player.height) / 2;
+        ai.y = (LOGICAL_HEIGHT - ai.height) / 2;
+        updateScoreUI();
+    }
+
+    function startCountdown() {
+        gameState = 'COUNTDOWN';
+        ball.x = LOGICAL_WIDTH / 2;
+        ball.y = LOGICAL_HEIGHT / 2;
+        
+        countdownEl.classList.remove('hidden');
+        countdownValue = 3;
+        countdownEl.innerText = countdownValue;
+        
+        if (countdownInterval) clearInterval(countdownInterval);
+        
+        countdownInterval = setInterval(() => {
+            if (gameState === 'PAUSED') return; // Jeda hitungan jika game di-pause
+            
+            countdownValue--;
+            if (countdownValue > 0) {
+                countdownEl.innerText = countdownValue;
+            } else if (countdownValue === 0) {
+                countdownEl.innerText = "GO!";
+            } else {
+                clearInterval(countdownInterval);
+                countdownEl.classList.add('hidden');
+                if (gameState === 'COUNTDOWN') {
+                    gameState = 'PLAYING';
+                    resetBall();
+                }
+            }
+        }, 1000);
+    }
+
+    // Navigasi Layar
+    function startGame(diff) {
+        currentDifficulty = diff;
+        resetGame();
+        startCountdown();
+        
+        menuScreen.classList.add('hidden');
+        gameOverScreen.classList.add('hidden');
+        pauseBtn.classList.remove('hidden');
+        centerLine.style.display = 'block';
+        scoreBoard.style.display = 'flex';
+        
+        if (!animationId) gameLoop();
+    }
+
+    function togglePause() {
+        if (gameState === 'PLAYING' || gameState === 'COUNTDOWN') {
+            pauseScreen.dataset.prevState = gameState; // Simpan state sebelumnya
+            gameState = 'PAUSED';
+            pauseScreen.classList.remove('hidden');
+            pauseBtn.classList.add('hidden');
+        }
+    }
+
+    function resumeGame() {
+        if (gameState === 'PAUSED') {
+            gameState = pauseScreen.dataset.prevState || 'PLAYING';
+            pauseScreen.classList.add('hidden');
+            pauseBtn.classList.remove('hidden');
+        }
+    }
+
+    function backToMenu() {
+        if (countdownInterval) clearInterval(countdownInterval);
+        gameState = 'MENU';
+        countdownEl.classList.add('hidden');
+        pauseScreen.classList.add('hidden');
+        gameOverScreen.classList.add('hidden');
+        menuScreen.classList.remove('hidden');
+        pauseBtn.classList.add('hidden');
+        centerLine.style.display = 'none';
+        scoreBoard.style.display = 'none';
+    }
+
+    function gameOver(isPlayerWin) {
+        if (countdownInterval) clearInterval(countdownInterval);
+        countdownEl.classList.add('hidden');
+        gameState = 'GAMEOVER';
+        pauseBtn.classList.add('hidden');
+        gameOverScreen.classList.remove('hidden');
+        document.getElementById('winner-text').innerText = isPlayerWin ? "KAMU MENANG!" : "AI MENANG!";
+        document.getElementById('final-score').innerText = `${player.score} - ${ai.score}`;
+    }
+
+    // Event Listeners Kontrol
+    pauseBtn.addEventListener('click', togglePause);
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') {
+            if (gameState === 'PLAYING' || gameState === 'COUNTDOWN') togglePause();
+            else if (gameState === 'PAUSED') resumeGame();
+        }
+    });
+
+    // Kontrol Mouse & Touch
+    function getMousePos(evt) {
+        const rect = canvas.getBoundingClientRect();
+        // Skala koordinat Y layar ke koordinat Y logika
+        const scaleY = LOGICAL_HEIGHT / rect.height;
+        let y = (evt.clientY - rect.top) * scaleY;
+        return y;
+    }
+
+    canvas.addEventListener('mousemove', (e) => {
+        if (gameState !== 'PLAYING' && gameState !== 'COUNTDOWN') return;
+        let y = getMousePos(e);
+        player.y = y - player.height / 2;
+    });
+
+    canvas.addEventListener('touchmove', (e) => {
+        if (gameState !== 'PLAYING' && gameState !== 'COUNTDOWN') return;
+        e.preventDefault(); // Mencegah scrolling browser
+        let y = getMousePos(e.touches[0]);
+        player.y = y - player.height / 2;
+    }, { passive: false });
+
+    // Batasi posisi papan agar tidak keluar layar
+    function clampPaddle(paddle) {
+        if (paddle.y < 0) paddle.y = 0;
+        if (paddle.y + paddle.height > LOGICAL_HEIGHT) paddle.y = LOGICAL_HEIGHT - paddle.height;
+    }
+
+    function updateScoreUI() {
+        scorePlayerEl.innerText = player.score;
+        scoreAiEl.innerText = ai.score;
+    }
+
+    // Logika Pembaruan Game
+    function update() {
+        // Logika AI (Komputer ke tengah saat hitung mundur, atau ikuti bola saat bermain)
+        const aiSpeed = difficulties[currentDifficulty].aiSpeed;
+        const targetY = (gameState === 'COUNTDOWN') ? LOGICAL_HEIGHT / 2 : ball.y;
+        const aiCenter = ai.y + ai.height / 2;
+        
+        if (aiCenter < targetY - 10) {
+            ai.y += aiSpeed;
+        } else if (aiCenter > targetY + 10) {
+            ai.y -= aiSpeed;
+        }
+
+        clampPaddle(player);
+        clampPaddle(ai);
+
+        // Hanya jalankan logika pergerakan bola dan tabrakan saat sedang bermain (bukan saat countdown)
+        if (gameState === 'PLAYING') {
+            // Gerakan Bola
+            ball.x += ball.velocityX;
+            ball.y += ball.velocityY;
+
+            // Pantulan Bola di Dinding Atas / Bawah
+            if (ball.y - ball.radius < 0 || ball.y + ball.radius > LOGICAL_HEIGHT) {
+                ball.velocityY = -ball.velocityY;
+                // Koreksi posisi agar bola tidak tersangkut
+                ball.y = ball.y - ball.radius < 0 ? ball.radius : LOGICAL_HEIGHT - ball.radius; 
+            }
+
+            // Cek tabrakan dengan papan (Player atau AI)
+            let targetPaddle = (ball.x < LOGICAL_WIDTH / 2) ? player : ai;
+
+            // Hitbox collision
+            if (ball.x - ball.radius < targetPaddle.x + targetPaddle.width && 
+                ball.x + ball.radius > targetPaddle.x && 
+                ball.y + ball.radius > targetPaddle.y && 
+                ball.y - ball.radius < targetPaddle.y + targetPaddle.height) {
+                
+                // Tentukan arah pantulan (kiri atau kanan)
+                let direction = (ball.x < LOGICAL_WIDTH / 2) ? 1 : -1;
+                
+                // Kalkulasi sudut pantulan berdasarkan titik kena di papan
+                let collidePoint = (ball.y - (targetPaddle.y + targetPaddle.height / 2));
+                collidePoint = collidePoint / (targetPaddle.height / 2); // Normalisasi antara -1 hingga 1
+                let angleRad = (Math.PI / 4) * collidePoint; // Sudut maksimal 45 derajat
+
+                // Tingkatkan kecepatan sedikit setiap kali memantul untuk menambah tantangan
+                ball.speed += 0.2;
+
+                ball.velocityX = direction * ball.speed * Math.cos(angleRad);
+                ball.velocityY = ball.speed * Math.sin(angleRad);
+                
+                // Pindahkan bola agar tidak tersangkut di dalam papan
+                if (direction === 1) {
+                    ball.x = targetPaddle.x + targetPaddle.width + ball.radius;
+                } else {
+                    ball.x = targetPaddle.x - ball.radius;
+                }
+            }
+
+            // Cek Skor
+            if (ball.x - ball.radius < 0) {
+                ai.score++;
+                updateScoreUI();
+                if(ai.score >= maxScore) gameOver(false);
+                else startCountdown();
+            } else if (ball.x + ball.radius > LOGICAL_WIDTH) {
+                player.score++;
+                updateScoreUI();
+                if(player.score >= maxScore) gameOver(true);
+                else startCountdown();
+            }
+        } // Penutup if (gameState === 'PLAYING')
+    }
+
+    // Menggambar Game
+    function draw() {
+        // Bersihkan canvas dengan mengisi ulang warna hitam solid
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        if (gameState !== 'PLAYING' && gameState !== 'PAUSED' && gameState !== 'COUNTDOWN') return;
+
+        // Skala render untuk menyesuaikan dengan layar device
+        ctx.save();
+        ctx.scale(canvas.width / LOGICAL_WIDTH, canvas.height / LOGICAL_HEIGHT);
+
+        // Gambar warna solid putih
+        ctx.fillStyle = "#FFF";
+
+        // Gambar Player
+        ctx.fillRect(player.x, player.y, player.width, player.height);
+
+        // Gambar AI
+        ctx.fillRect(ai.x, ai.y, ai.width, ai.height);
+
+        // Gambar Bola (Kotak klasik, bukan lingkaran untuk gaya retro)
+        ctx.fillRect(ball.x - ball.radius, ball.y - ball.radius, ball.radius * 2, ball.radius * 2);
+
+        ctx.restore();
+    }
+
+    // Game Loop Utama
+    function gameLoop() {
+        if (gameState === 'PLAYING' || gameState === 'COUNTDOWN') {
+            update();
+        }
+        draw();
+        animationId = requestAnimationFrame(gameLoop);
+    }
+
+    // Sembunyikan elemen UI in-game pada saat baru dimuat
+    centerLine.style.display = 'none';
+    scoreBoard.style.display = 'none';
+    
+</script>
+</body>
+</html>

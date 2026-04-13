@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Dino Run Klasik</title>
+    <!-- Menggunakan font retro untuk kesan klasik -->
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        /* Gaya dasar - Murni minimalis, tanpa efek AI/Glow/Shadow */
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #ffffff;
+            color: #535353;
+            font-family: 'Press Start 2P', monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            touch-action: none; /* Mencegah pull-to-refresh di mobile */
+        }
+
+        #game-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            aspect-ratio: 8 / 3;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            background-color: #f7f7f7;
+            /* Garis bawah sebagai batas ground */
+            border-bottom: 2px solid #535353; 
+            image-rendering: pixelated;
+        }
+
+        /* Overlay UI untuk Menu, Pause, dan Game Over */
+        .ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(247, 247, 247, 0.85); /* Solid overlay, bukan glassmorphism */
+            z-index: 10;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .title {
+            font-size: 24px;
+            margin-bottom: 30px;
+            text-align: center;
+            line-height: 1.5;
+            color: #535353;
+        }
+
+        @media (max-width: 600px) {
+            .title { font-size: 16px; margin-bottom: 20px; }
+            .retro-btn { font-size: 10px !important; padding: 8px 12px !important; }
+        }
+
+        /* Desain Tombol Retro Klasik - Kotak, border tegas, tanpa radius atau efek */
+        .retro-btn {
+            background-color: #f7f7f7;
+            border: 2px solid #535353;
+            color: #535353;
+            padding: 12px 20px;
+            margin: 5px;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 12px;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: none; /* Tidak ada animasi halus */
+        }
+
+        .retro-btn:hover, .retro-btn:active {
+            background-color: #535353;
+            color: #f7f7f7;
+        }
+
+        .retro-btn.active-diff {
+            background-color: #535353;
+            color: #f7f7f7;
+            border-style: dashed;
+        }
+
+        .btn-group {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        /* Tombol Pause di pojok layar saat bermain */
+        #btn-pause-ingame {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: none;
+            border: 2px solid #535353;
+            color: #535353;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 10px;
+            padding: 5px 10px;
+            cursor: pointer;
+            z-index: 5;
+        }
+
+        /* Area UI untuk Score */
+        #score-board {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            font-size: 12px;
+            color: #535353;
+            z-index: 5;
+            pointer-events: none;
+            display: flex;
+            gap: 20px;
+        }
+        
+        .score-blink {
+            animation: blinker 0.5s linear infinite;
+        }
+        @keyframes blinker {
+            50% { opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="score-board" class="hidden">
+        <div>HI <span id="hi-score">00000</span></div>
+        <div id="current-score-container"><span id="current-score">00000</span></div>
+    </div>
+    
+    <button id="btn-pause-ingame" class="hidden">||</button>
+
+    <canvas id="gameCanvas" width="800" height="300"></canvas>
+
+    <!-- Layar Menu Utama -->
+    <div id="menu-screen" class="ui-layer">
+        <div class="title">DINO LARI</div>
+        <div style="font-size: 10px; margin-bottom: 10px;">Pilih Kesulitan:</div>
+        <div class="btn-group">
+            <button class="retro-btn diff-btn" data-diff="easy">Mudah</button>
+            <button class="retro-btn diff-btn active-diff" data-diff="normal">Normal</button>
+            <button class="retro-btn diff-btn" data-diff="hard">Sulit</button>
+        </div>
+        <button id="btn-start" class="retro-btn" style="margin-top: 10px;">Mulai Game</button>
+        <div style="font-size: 8px; margin-top: 30px; text-align: center; line-height: 1.8; color: #777;">
+            [PC] Tahan Spasi/Atas: Lompat Tinggi | Lepas: Lompat Pendek<br>
+            Bawah: Nunduk<br><br>
+            [HP] Tap Tahan: Lompat Tinggi | Tap Cepat: Lompat Pendek<br>
+            Swipe Bawah: Nunduk
+        </div>
+    </div>
+
+    <!-- Layar Pause -->
+    <div id="pause-screen" class="ui-layer hidden">
+        <div class="title">DIPAUSE</div>
+        <button id="btn-resume" class="retro-btn">Lanjutkan</button>
+        <button id="btn-quit-pause" class="retro-btn">Menu Utama</button>
+    </div>
+
+    <!-- Layar Game Over -->
+    <div id="gameover-screen" class="ui-layer hidden">
+        <div class="title">GAME OVER</div>
+        <div style="margin-bottom: 20px; font-size: 14px;">Skor: <span id="final-score">0</span></div>
+        <button id="btn-restart" class="retro-btn">Main Lagi</button>
+        <button id="btn-quit-over" class="retro-btn">Menu Utama</button>
+    </div>
+</div>
+
+<script>
+    // --- KONFIGURASI DAN SETUP ---
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    const GAME_WIDTH = 800;
+    const GAME_HEIGHT = 300;
+    const GROUND_Y = 260;
+
+    const COLOR_SPRITE = '#535353';
+    const COLOR_BG = '#f7f7f7';
+
+    let gameState = 'MENU'; 
+    let animationId;
+    let frames = 0;
+    let score = 0;
+    let highScore = 0; 
+    let gameSpeed = 5;
+    let minSpawnDist = 200; // Jarak minimal antar rintangan agar adil
+    
+    // Konfigurasi Kesulitan (Spawn rate diatur ulang agar tidak saling tumpuk)
+    const difficulties = {
+        easy: { baseSpeed: 5, speedInc: 0.001, spawnMin: 100, spawnMax: 180 },
+        normal: { baseSpeed: 6.5, speedInc: 0.0015, spawnMin: 80, spawnMax: 150 },
+        hard: { baseSpeed: 8, speedInc: 0.002, spawnMin: 60, spawnMax: 110 }
+    };
+    let currentDifficulty = 'normal';
+    let conf = difficulties[currentDifficulty];
+
+    const uiMenu = document.getElementById('menu-screen');
+    const uiPause = document.getElementById('pause-screen');
+    const uiGameover = document.getElementById('gameover-screen');
+    const uiScoreBoard = document.getElementById('score-board');
+    const btnPauseIngame = document.getElementById('btn-pause-ingame');
+    const txtCurrentScore = document.getElementById('current-score');
+    const containerCurrentScore = document.getElementById('current-score-container');
+    const txtHiScore = document.getElementById('hi-score');
+    const txtFinalScore = document.getElementById('final-score');
+    const diffBtns = document.querySelectorAll('.diff-btn');
+
+    let obstacles = [];
+    let clouds = [];
+    let groundParticles = [];
+
+    // --- CLASS OBJEK GAME ---
+
+    const dino = {
+        x: 50,
+        y: GROUND_Y,
+        w: 44,
+        h: 47,
+        duckW: 59,
+        duckH: 30,
+        vy: 0,
+        gravity: 1.1,      // Fisika diperberat agar lompatan lebih responsif
+        jumpPower: -15,    // Daya tolak lompatan
+        isJumping: false,
+        isDucking: false,
+        legFrame: 0,
+        
+        draw() {
+            ctx.fillStyle = COLOR_SPRITE;
+            let drawY = this.y - (this.isDucking ? this.duckH : this.h);
+            
+            if (this.isDucking) {
+                // Gambar Dino Nunduk (Lebih Detail)
+                // Badan utama nunduk
+                ctx.fillRect(this.x, drawY + 10, 30, 16); 
+                // Kepala nunduk depan
+                ctx.fillRect(this.x + 30, drawY + 8, 25, 14); 
+                // Mulut/Moncong
+                ctx.fillRect(this.x + 35, drawY + 22, 15, 6);
+                // Mata nunduk
+                ctx.fillStyle = COLOR_BG;
+                ctx.fillRect(this.x + 42, drawY + 10, 4, 4);
+                ctx.fillStyle = COLOR_SPRITE;
+                // Ekor nunduk
+                ctx.fillRect(this.x - 10, drawY + 10, 10, 10);
+                ctx.fillRect(this.x - 15, drawY + 5, 5, 5);
+
+            } else {
+                // Gambar Dino Berdiri (Lebih Detail)
+                // Badan
+                ctx.fillRect(this.x + 10, drawY + 15, 18, 22); 
+                // Leher & Kepala
+                ctx.fillRect(this.x + 20, drawY, 20, 16);
+                // Mulut
+                ctx.fillRect(this.x + 24, drawY + 16, 12, 6);
+                // Mata (Titik putih)
+                ctx.fillStyle = COLOR_BG;
+                ctx.fillRect(this.x + 28, drawY + 3, 4, 4);
+                ctx.fillStyle = COLOR_SPRITE;
+                // Tangan kecil
+                ctx.fillRect(this.x + 28, drawY + 20, 8, 4);
+                // Ekor
+                ctx.fillRect(this.x, drawY + 25, 10, 12);
+                ctx.fillRect(this.x - 5, drawY + 20, 8, 8);
+                ctx.fillRect(this.x - 8, drawY + 15, 4, 5);
+            }
+
+            // Animasi Kaki
+            let legY = this.y - 10;
+            if (!this.isJumping && gameState === 'PLAYING') {
+                if (frames % 12 < 6) this.legFrame = 0;
+                else this.legFrame = 1;
+            } else if (this.isJumping) {
+                this.legFrame = 2; 
+            }
+
+            // Kaki Berdiri / Nunduk
+            let legXOffset = this.isDucking ? 5 : 0;
+            if (this.legFrame === 0) {
+                // Kaki Kiri Naik
+                ctx.fillRect(this.x + 12 + legXOffset, legY, 6, 5); 
+                // Kaki Kanan Turun
+                ctx.fillRect(this.x + 22 + legXOffset, legY, 6, 10); 
+                ctx.fillRect(this.x + 24 + legXOffset, legY + 8, 6, 4); // telapak
+            } else if (this.legFrame === 1) {
+                // Kaki Kiri Turun
+                ctx.fillRect(this.x + 12 + legXOffset, legY, 6, 10); 
+                ctx.fillRect(this.x + 14 + legXOffset, legY + 8, 6, 4); // telapak
+                // Kaki Kanan Naik
+                ctx.fillRect(this.x + 22 + legXOffset, legY, 6, 5); 
+            } else {
+                // Di udara (kedua kaki agak ditekuk)
+                ctx.fillRect(this.x + 12 + legXOffset, legY, 6, 5);
+                ctx.fillRect(this.x + 22 + legXOffset, legY, 6, 5);
+            }
+        },
+        
+        update() {
+            this.vy += this.gravity;
+            this.y += this.vy;
+
+            if (this.y >= GROUND_Y) {
+                this.y = GROUND_Y;
+                this.vy = 0;
+                this.isJumping = false;
+            } else {
+                this.isJumping = true;
+            }
+        },
+
+        jump() {
+            if (!this.isJumping) {
+                this.vy = this.jumpPower;
+                this.isJumping = true;
+                this.isDucking = false;
+            }
+        },
+        
+        // Fitur Short Hop: Potong kecepatan ke atas jika tombol dilepas
+        stopJump() {
+            if (this.isJumping && this.vy < -6) {
+                this.vy = -6; 
+            }
+        },
+
+        duck(state) {
+            if (this.isJumping) {
+                if (state) this.vy += 6; // Fast fall lebih kuat
+            }
+            this.isDucking = state;
+        },
+
+        getHitbox() {
+            // HITBOX DIPERKECIL AGAR LEBIH ADIL (Toleransi tinggi)
+            let drawY = this.y - (this.isDucking ? this.duckH : this.h);
+            let drawH = this.isDucking ? this.duckH : this.h;
+            let drawW = this.isDucking ? this.duckW : this.w;
+            
+            // Hitbox hanya memakan area inti badan dino (kepala, perut)
+            return {
+                x: this.x + 15, 
+                y: drawY + 10, 
+                w: drawW - 30, 
+                h: drawH - 15
+            };
+        }
+    };
+
+    class Obstacle {
+        constructor() {
+            this.type = Math.random() > 0.75 && frames > 300 ? 'bird' : 'cactus';
+            this.x = GAME_WIDTH;
+            this.markedForDeletion = false;
+            
+            if (this.type === 'cactus') {
+                // Variasi kaktus: Kecil (1), Sedang (2), Besar berjejer (3)
+                let rand = Math.random();
+                if (rand < 0.33) {
+                    this.w = 15; this.h = 35; // Kecil
+                } else if (rand < 0.66) {
+                    this.w = 25; this.h = 50; // Sedang
+                } else {
+                    this.w = 50; this.h = 45; // Kumpulan kaktus
+                }
+                this.y = GROUND_Y;
+            } else { 
+                this.w = 46;
+                this.h = 30;
+                // Tinggi burung (bisa dilompati atau nunduk)
+                let heights = [GROUND_Y - 25, GROUND_Y - 55, GROUND_Y - 85];
+                this.y = heights[Math.floor(Math.random() * heights.length)];
+                this.wingUp = false;
+            }
+        }
+
+        update() {
+            this.x -= gameSpeed;
+            if (this.x + this.w < 0) {
+                this.markedForDeletion = true;
+            }
+            
+            if (this.type === 'bird' && frames % 12 === 0) {
+                this.wingUp = !this.wingUp;
+            }
+        }
+
+        draw() {
+            ctx.fillStyle = COLOR_SPRITE;
+            if (this.type === 'cactus') {
+                let yPos = this.y - this.h;
+                // Gambar batang utama
+                ctx.fillRect(this.x + this.w/2 - 6, yPos, 12, this.h); 
+                
+                // Tambah cabang agar terlihat lebih detail
+                if (this.w > 20) {
+                    // Cabang kiri
+                    ctx.fillRect(this.x + this.w/2 - 16, yPos + 15, 10, 6); // konektor
+                    ctx.fillRect(this.x + this.w/2 - 18, yPos + 5, 8, 16);  // tiang kiri
+                    // Cabang kanan
+                    ctx.fillRect(this.x + this.w/2 + 6, yPos + 25, 10, 6);  // konektor
+                    ctx.fillRect(this.x + this.w/2 + 10, yPos + 10, 8, 21); // tiang kanan
+                }
+                // Jika kaktus lebar (kumpulan)
+                if (this.w > 40) {
+                    ctx.fillRect(this.x + 5, yPos + 10, 10, this.h - 10);
+                    ctx.fillRect(this.x + this.w - 15, yPos + 15, 12, this.h - 15);
+                }
+            } else {
+                // Gambar Pterodactyl (Lebih Detail)
+                let yPos = this.y - this.h;
+                // Badan
+                ctx.fillRect(this.x + 15, yPos + 12, 18, 8); 
+                // Kepala & Paruh
+                ctx.fillRect(this.x, yPos + 8, 15, 6);
+                ctx.fillRect(this.x + 10, yPos + 4, 8, 6); // tonjolan kepala belakang
+                
+                // Sayap animasi
+                if (this.wingUp) {
+                    ctx.fillRect(this.x + 18, yPos - 2, 14, 14); // Sayap atas naik
+                    ctx.fillRect(this.x + 22, yPos - 8, 8, 6);   // Ujung sayap
+                } else {
+                    ctx.fillRect(this.x + 18, yPos + 20, 14, 12); // Sayap bawah turun
+                    ctx.fillRect(this.x + 22, yPos + 32, 8, 4);   // Ujung sayap
+                }
+            }
+        }
+
+        getHitbox() {
+            // Hitbox rintangan juga diperkecil agar sangat adil
+            let yPos = this.y - this.h;
+            return {
+                x: this.x + 8,
+                y: yPos + 8,
+                w: this.w - 16,
+                h: this.h - 16
+            };
+        }
+    }
+
+    class Cloud {
+        constructor() {
+            this.x = GAME_WIDTH + Math.random() * 200;
+            this.y = Math.random() * 100 + 20;
+            this.w = 40 + Math.random() * 40;
+            this.speed = gameSpeed * 0.15;
+            this.markedForDeletion = false;
+        }
+        update() {
+            this.x -= this.speed;
+            if (this.x + this.w < 0) this.markedForDeletion = true;
+        }
+        draw() {
+            ctx.fillStyle = '#e5e5e5'; 
+            ctx.fillRect(this.x + 10, this.y, this.w - 20, 20);
+            ctx.fillRect(this.x, this.y + 10, this.w, 10);
+            ctx.fillRect(this.x + 15, this.y - 10, this.w - 30, 10);
+        }
+    }
+
+    class GroundParticle {
+        constructor(x = GAME_WIDTH) {
+            this.x = x;
+            this.y = GROUND_Y + 5 + Math.random() * 15;
+            this.w = Math.random() * 10 + 2;
+            this.markedForDeletion = false;
+        }
+        update() {
+            this.x -= gameSpeed;
+            if (this.x + this.w < 0) this.markedForDeletion = true;
+        }
+        draw() {
+            ctx.fillStyle = COLOR_SPRITE;
+            ctx.fillRect(this.x, this.y, this.w, 2);
+        }
+    }
+
+    // --- LOGIKA GAME ---
+
+    function resetGame() {
+        obstacles = [];
+        clouds = [];
+        groundParticles = [];
+        frames = 0;
+        score = 0;
+        containerCurrentScore.classList.remove('score-blink');
+        
+        for(let i=0; i<25; i++) groundParticles.push(new GroundParticle(Math.random() * GAME_WIDTH));
+        for(let i=0; i<4; i++) clouds.push(new Cloud());
+
+        conf = difficulties[currentDifficulty];
+        gameSpeed = conf.baseSpeed;
+        
+        dino.y = GROUND_Y;
+        dino.vy = 0;
+        dino.isJumping = false;
+        dino.isDucking = false;
+        
+        updateScoreUI();
+    }
+
+    function spawnEntities() {
+        // Logika Spawn Rintangan yang lebih cerdas (mencegah mustahil dilompati)
+        if (frames > 60) {
+            let lastObstacle = obstacles[obstacles.length - 1];
+            let distToLast = lastObstacle ? (GAME_WIDTH - lastObstacle.x) : 9999;
+
+            // Spawn baru hanya jika rintangan terakhir sudah cukup jauh
+            if (distToLast > minSpawnDist) {
+                let spawnRate = Math.floor(Math.random() * (conf.spawnMax - conf.spawnMin + 1)) + conf.spawnMin;
+                if (frames % spawnRate === 0) {
+                    obstacles.push(new Obstacle());
+                    // Jarak minimal disesuaikan dengan kecepatan game
+                    minSpawnDist = 200 + (gameSpeed * 10); 
+                }
+            }
+        }
+
+        if (frames % 200 === 0) clouds.push(new Cloud());
+        if (frames % 8 === 0) groundParticles.push(new GroundParticle());
+    }
+
+    function checkCollisions() {
+        let dBox = dino.getHitbox();
+        
+        // Uncomment baris di bawah ini untuk DEBUG Hitbox (akan terlihat kotak merah)
+        // ctx.fillStyle = 'rgba(255,0,0,0.4)'; ctx.fillRect(dBox.x, dBox.y, dBox.w, dBox.h);
+        
+        for (let obs of obstacles) {
+            let oBox = obs.getHitbox();
+            // DEBUG Hitbox rintangan
+            // ctx.fillStyle = 'rgba(0,0,255,0.4)'; ctx.fillRect(oBox.x, oBox.y, oBox.w, oBox.h);
+            
+            // AABB Collision Detection
+            if (dBox.x < oBox.x + oBox.w &&
+                dBox.x + dBox.w > oBox.x &&
+                dBox.y < oBox.y + oBox.h &&
+                dBox.y + dBox.h > oBox.y) {
+                gameOver();
+            }
+        }
+    }
+
+    function formatScore(s) {
+        return Math.floor(s).toString().padStart(5, '0');
+    }
+
+    function updateScoreUI() {
+        let displayScore = formatScore(score);
+        txtCurrentScore.innerText = displayScore;
+        txtHiScore.innerText = formatScore(highScore);
+        
+        // Efek kedip setiap kelipatan 100
+        if (score > 0 && score % 100 === 0) {
+            containerCurrentScore.classList.add('score-blink');
+            setTimeout(() => {
+                containerCurrentScore.classList.remove('score-blink');
+            }, 2000);
+            gameSpeed += 0.5; // Lonjakan kecepatan saat tembus 100
+        }
+    }
+
+    function gameLoop() {
+        if (gameState !== 'PLAYING') return;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        gameSpeed += conf.speedInc;
+        frames++;
+        
+        if (frames % 5 === 0) {
+            score++;
+            updateScoreUI();
+        }
+
+        spawnEntities();
+
+        clouds.forEach(c => { c.update(); c.draw(); });
+        clouds = clouds.filter(c => !c.markedForDeletion);
+
+        // Gambar Garis Tanah
+        ctx.fillStyle = COLOR_SPRITE;
+        ctx.fillRect(0, GROUND_Y, GAME_WIDTH, 2);
+        groundParticles.forEach(p => { p.update(); p.draw(); });
+        groundParticles = groundParticles.filter(p => !p.markedForDeletion);
+
+        dino.update();
+        dino.draw();
+
+        obstacles.forEach(obs => { obs.update(); obs.draw(); });
+        obstacles = obstacles.filter(obs => !obs.markedForDeletion);
+
+        checkCollisions();
+
+        if (gameState === 'PLAYING') {
+            animationId = requestAnimationFrame(gameLoop);
+        }
+    }
+
+    // --- STATE MANAGEMENT ---
+
+    function startGame() {
+        gameState = 'PLAYING';
+        uiMenu.classList.add('hidden');
+        uiPause.classList.add('hidden');
+        uiGameover.classList.add('hidden');
+        uiScoreBoard.classList.remove('hidden');
+        btnPauseIngame.classList.remove('hidden');
+        
+        resetGame();
+        gameLoop();
+    }
+
+    function pauseGame() {
+        if (gameState === 'PLAYING') {
+            gameState = 'PAUSED';
+            cancelAnimationFrame(animationId);
+            uiPause.classList.remove('hidden');
+            btnPauseIngame.classList.add('hidden');
+        } else if (gameState === 'PAUSED') {
+            gameState = 'PLAYING';
+            uiPause.classList.add('hidden');
+            btnPauseIngame.classList.remove('hidden');
+            gameLoop();
+        }
+    }
+
+    function gameOver() {
+        gameState = 'GAMEOVER';
+        cancelAnimationFrame(animationId);
+        
+        if (score > highScore) {
+            highScore = score;
+        }
+        
+        txtFinalScore.innerText = Math.floor(score);
+        uiGameover.classList.remove('hidden');
+        btnPauseIngame.classList.add('hidden');
+    }
+
+    function showMenu() {
+        gameState = 'MENU';
+        cancelAnimationFrame(animationId);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        uiMenu.classList.remove('hidden');
+        uiPause.classList.add('hidden');
+        uiGameover.classList.add('hidden');
+        uiScoreBoard.classList.add('hidden');
+        btnPauseIngame.classList.add('hidden');
+    }
+
+
+    // --- KONTROL INPUT ---
+
+    window.addEventListener('keydown', (e) => {
+        if (e.code === 'Space' || e.code === 'ArrowUp') {
+            e.preventDefault();
+            if (gameState === 'PLAYING') dino.jump();
+            else if (gameState === 'GAMEOVER') startGame();
+        } else if (e.code === 'ArrowDown') {
+            e.preventDefault();
+            if (gameState === 'PLAYING') dino.duck(true);
+        } else if (e.code === 'Escape' || e.code === 'KeyP') {
+            if (gameState === 'PLAYING' || gameState === 'PAUSED') pauseGame();
+        }
+    });
+
+    window.addEventListener('keyup', (e) => {
+        if (e.code === 'Space' || e.code === 'ArrowUp') {
+            if (gameState === 'PLAYING') dino.stopJump(); // Memicu short hop saat dilepas
+        } else if (e.code === 'ArrowDown') {
+            if (gameState === 'PLAYING') dino.duck(false);
+        }
+    });
+
+    // Touch Controller (Ditingkatkan)
+    let touchStartY = 0;
+    let isSwiping = false;
+    
+    canvas.addEventListener('touchstart', (e) => {
+        if (gameState !== 'PLAYING') return;
+        e.preventDefault();
+        touchStartY = e.touches[0].clientY;
+        isSwiping = false;
+        dino.jump(); // Langsung lompat saat disentuh
+    }, {passive: false});
+
+    canvas.addEventListener('touchmove', (e) => {
+        if (gameState !== 'PLAYING') return;
+        let touchCurrentY = e.touches[0].clientY;
+        if (touchCurrentY - touchStartY > 30) {
+            isSwiping = true;
+            dino.duck(true); // Mulai nunduk jika mendeteksi swipe ke bawah
+        }
+    }, {passive: false});
+
+    canvas.addEventListener('touchend', (e) => {
+        if (gameState !== 'PLAYING') return;
+        e.preventDefault();
+        
+        dino.stopJump(); // Potong lompatan jika tap dilepas cepat (short hop)
+        
+        if (isSwiping) {
+            // Beri sedikit jeda agar nunduk terasa efektif
+            setTimeout(() => { dino.duck(false); }, 150); 
+        } else {
+            dino.duck(false);
+        }
+    }, {passive: false});
+
+    // --- EVENT LISTENERS UI ---
+
+    diffBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            diffBtns.forEach(b => b.classList.remove('active-diff'));
+            btn.classList.add('active-diff');
+            currentDifficulty = btn.getAttribute('data-diff');
+        });
+    });
+
+    document.getElementById('btn-start').addEventListener('click', startGame);
+    document.getElementById('btn-restart').addEventListener('click', startGame);
+    document.getElementById('btn-resume').addEventListener('click', pauseGame);
+    btnPauseIngame.addEventListener('click', pauseGame);
+    document.getElementById('btn-quit-pause').addEventListener('click', showMenu);
+    document.getElementById('btn-quit-over').addEventListener('click', showMenu);
+
+    ctx.fillStyle = COLOR_BG;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = COLOR_SPRITE;
+    ctx.fillRect(0, GROUND_Y, GAME_WIDTH, 2);
+
+</script>
+</body>
+</html>

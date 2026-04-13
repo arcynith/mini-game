@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Penyerbu Angkasa (Retro)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #111; /* Warna gelap solid, bukan hitam pekat */
+            color: #fff;
+            font-family: 'Press Start 2P', monospace; /* Font retro */
+            touch-action: none; /* Mencegah scroll di mobile saat main */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            user-select: none;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            aspect-ratio: 3/4; /* Rasio yang cocok untuk mobile dan desktop */
+            max-height: 100vh;
+            background-color: #000;
+            border: 2px solid #333;
+        }
+
+        @media (min-aspect-ratio: 1/1) {
+            #game-container {
+                aspect-ratio: 4/3; /* Desktop orientasi landscape */
+            }
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            image-rendering: pixelated; /* Mencegah blur, gaya retro */
+        }
+
+        /* UI Overlays */
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85); /* Solid transparent black, no blur */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            z-index: 10;
+        }
+
+        .hidden { display: none !important; }
+
+        .btn {
+            background-color: #000;
+            color: #0f0; /* Retro green */
+            border: 2px solid #0f0;
+            padding: 15px 20px;
+            margin: 10px;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 12px;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+
+        .btn:hover, .btn:active {
+            background-color: #0f0;
+            color: #000;
+        }
+
+        .btn.selected {
+            background-color: #fff;
+            color: #000;
+            border-color: #fff;
+        }
+
+        /* Mobile Controls */
+        #mobile-controls {
+            position: absolute;
+            bottom: 10px;
+            left: 0;
+            width: 100%;
+            display: none; /* Hidden by default, shown via JS if touch */
+            justify-content: space-between;
+            padding: 0 20px;
+            box-sizing: border-box;
+            z-index: 5;
+        }
+
+        .control-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            color: white;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            user-select: none;
+        }
+
+        .control-btn:active {
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        #move-controls {
+            display: flex;
+            gap: 15px;
+        }
+
+        /* Mencegah highlight biru di mobile saat tap */
+        * { -webkit-tap-highlight-color: transparent; }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Layar Utama -->
+    <div id="menu-screen" class="overlay">
+        <h1 class="text-3xl md:text-4xl text-green-500 mb-8 leading-snug">PENYERBU<br>ANGKASA</h1>
+        
+        <div class="mb-6">
+            <p class="text-xs mb-3 text-gray-400">PILIH KESULITAN:</p>
+            <div class="flex flex-col md:flex-row justify-center">
+                <button class="btn diff-btn" data-diff="easy">MUDAH</button>
+                <button class="btn diff-btn selected" data-diff="normal">NORMAL</button>
+                <button class="btn diff-btn" data-diff="hard">SULIT</button>
+            </div>
+        </div>
+
+        <button id="btn-start" class="btn mt-4 text-xl py-4 px-8 border-white text-white hover:bg-white hover:text-black">MULAI MAIN</button>
+        
+        <p class="text-[10px] text-gray-500 mt-8 max-w-xs leading-relaxed">
+            Desktop: Panah Kiri/Kanan & Spasi<br>
+            Pause: Tombol 'P' atau 'ESC'<br>
+            Mobile: Gunakan tombol di layar
+        </p>
+    </div>
+
+    <!-- Layar Pause -->
+    <div id="pause-screen" class="overlay hidden">
+        <h2 class="text-2xl text-yellow-400 mb-6">JEDA</h2>
+        <button id="btn-resume" class="btn">LANJUTKAN</button>
+        <button id="btn-quit" class="btn mt-4 border-red-500 text-red-500 hover:bg-red-500 hover:text-white">KEMBALI KE MENU</button>
+    </div>
+
+    <!-- Layar Game Over -->
+    <div id="gameover-screen" class="overlay hidden">
+        <h2 class="text-3xl text-red-500 mb-4">GAME OVER</h2>
+        <p class="text-sm mb-2">SKOR AKHIR:</p>
+        <p id="final-score" class="text-2xl text-white mb-8">0</p>
+        <button id="btn-restart" class="btn">MAIN LAGI</button>
+        <button id="btn-menu-go" class="btn mt-4">MENU UTAMA</button>
+    </div>
+
+    <!-- Kontrol Mobile -->
+    <div id="mobile-controls">
+        <div id="move-controls">
+            <div class="control-btn" id="btn-left">◀</div>
+            <div class="control-btn" id="btn-right">▶</div>
+        </div>
+        <div class="control-btn" id="btn-fire" style="border-radius: 10px; width: 80px; background: rgba(255,0,0,0.3); border-color: rgba(255,0,0,0.6);">FIRE</div>
+    </div>
+    
+    <!-- Tombol Pause Mobile -->
+    <div id="mobile-pause-btn" class="absolute top-4 right-4 z-10 hidden">
+        <button class="text-white text-sm opacity-50 hover:opacity-100 p-2 border border-white rounded" id="btn-pause-mobile">||</button>
+    </div>
+</div>
+
+<script>
+    // --- KONFIGURASI & VARIABEL GLOBAL ---
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d', { alpha: false }); // Optimasi: tidak ada transparansi background canvas
+    
+    // Resolusi internal game (Retro feel, resolusi rendah diperbesar)
+    const GAME_WIDTH = 400;
+    const GAME_HEIGHT = 500;
+    
+    // Menyesuaikan ukuran asli canvas
+    function resizeCanvas() {
+        canvas.width = GAME_WIDTH;
+        canvas.height = GAME_HEIGHT;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // Deteksi sentuhan (Mobile)
+    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    if (isTouchDevice) {
+        document.getElementById('mobile-controls').style.display = 'flex';
+        document.getElementById('mobile-pause-btn').style.display = 'block';
+    }
+
+    // Elemen UI
+    const uiMenu = document.getElementById('menu-screen');
+    const uiPause = document.getElementById('pause-screen');
+    const uiGameOver = document.getElementById('gameover-screen');
+    const scoreDisplay = document.getElementById('final-score');
+
+    // Palet Warna (Solid, tanpa glow/gradien)
+    const COLORS = {
+        bg: '#000000',
+        player: '#00FF00',
+        alien1: '#00FFFF', // Cyan
+        alien2: '#FF00FF', // Magenta
+        alien3: '#FFFF00', // Yellow
+        ufo: '#FF0000',    // Red
+        bulletPlayer: '#FFFFFF',
+        bulletAlien: '#FF5555',
+        bunker: '#00FF00',
+        text: '#FFFFFF'
+    };
+
+    // State Game
+    let gameState = 'menu'; // menu, playing, paused, gameover
+    let animationId;
+    let lastTime = 0;
+
+    // Input State
+    const keys = { ArrowLeft: false, ArrowRight: false, Space: false };
+
+    // --- PENGATURAN KESULITAN ---
+    const DIFFICULTIES = {
+        easy: { speedMult: 0.6, fireRateMult: 0.5, lives: 5, bunkerHealth: 5 },
+        normal: { speedMult: 1.0, fireRateMult: 1.0, lives: 3, bunkerHealth: 4 },
+        hard: { speedMult: 1.5, fireRateMult: 2.0, lives: 2, bunkerHealth: 3 }
+    };
+    let currentDifficulty = 'normal';
+
+    // --- KELAS-KELAS ENTITAS ---
+
+    class Player {
+        constructor() {
+            this.width = 26;
+            this.height = 14;
+            this.x = GAME_WIDTH / 2 - this.width / 2;
+            this.y = GAME_HEIGHT - 30;
+            this.speed = 200; // pixels per second
+            this.color = COLORS.player;
+            this.cooldownTimer = 0;
+            this.cooldownMax = 0.4; // detik antar tembakan
+        }
+
+        update(dt) {
+            if (keys.ArrowLeft) this.x -= this.speed * dt;
+            if (keys.ArrowRight) this.x += this.speed * dt;
+
+            // Batasan layar
+            if (this.x < 0) this.x = 0;
+            if (this.x + this.width > GAME_WIDTH) this.x = GAME_WIDTH - this.width;
+
+            // Cooldown tembakan
+            if (this.cooldownTimer > 0) this.cooldownTimer -= dt;
+
+            // Menembak
+            if (keys.Space && this.cooldownTimer <= 0) {
+                game.bullets.push(new Bullet(this.x + this.width / 2 - 1, this.y, -300, COLORS.bulletPlayer, true));
+                this.cooldownTimer = this.cooldownMax;
+            }
+        }
+
+        draw(ctx) {
+            ctx.fillStyle = this.color;
+            // Gambar bentuk pesawat retro (menggunakan blok, bukan kurva)
+            // Badan bawah
+            ctx.fillRect(this.x, this.y + 6, this.width, 8);
+            // Bagian tengah
+            ctx.fillRect(this.x + 2, this.y + 3, this.width - 4, 3);
+            // Meriam atas
+            ctx.fillRect(this.x + this.width/2 - 2, this.y, 4, 3);
+        }
+    }
+
+    class Alien {
+        constructor(x, y, type) {
+            this.x = x;
+            this.y = y;
+            this.width = 20;
+            this.height = 16;
+            this.type = type; // 1, 2, atau 3
+            
+            if(type === 1) { this.color = COLORS.alien1; this.points = 30; }
+            else if(type === 2) { this.color = COLORS.alien2; this.points = 20; }
+            else { this.color = COLORS.alien3; this.points = 10; }
+
+            this.animationTimer = 0;
+            this.frame = 0;
+        }
+
+        draw(ctx) {
+            ctx.fillStyle = this.color;
+            // Gambar alien sederhana berbasis bentuk kotak
+            // Animasi sederhana (2 frame) berdasarkan waktu
+            this.animationTimer++;
+            if(this.animationTimer > 30) {
+                this.frame = this.frame === 0 ? 1 : 0;
+                this.animationTimer = 0;
+            }
+
+            const cx = this.x;
+            const cy = this.y;
+            const w = this.width;
+            const h = this.height;
+
+            // Desain sangat basic untuk memastikan tidak mirip AI / bentuk organik
+            if (this.type === 1) {
+                // Tipe Kepala Besar
+                ctx.fillRect(cx + 4, cy, w - 8, h - 4); // Kepala
+                ctx.fillRect(cx, cy + 4, w, 4); // Telinga
+                // Kaki berubah saat frame berganti
+                if (this.frame === 0) {
+                    ctx.fillRect(cx + 4, cy + h - 4, 4, 4);
+                    ctx.fillRect(cx + w - 8, cy + h - 4, 4, 4);
+                } else {
+                    ctx.fillRect(cx, cy + h - 4, 4, 4);
+                    ctx.fillRect(cx + w - 4, cy + h - 4, 4, 4);
+                }
+            } else if (this.type === 2) {
+                // Tipe Kepiting
+                ctx.fillRect(cx + 2, cy, w - 4, h - 6); 
+                // Mata (Kosong/Hitam)
+                ctx.fillStyle = COLORS.bg;
+                ctx.fillRect(cx + 6, cy + 4, 2, 2);
+                ctx.fillRect(cx + w - 8, cy + 4, 2, 2);
+                ctx.fillStyle = this.color;
+                // Capit/Kaki
+                if(this.frame === 0) {
+                    ctx.fillRect(cx, cy + 4, 2, h-4);
+                    ctx.fillRect(cx + w - 2, cy + 4, 2, h-4);
+                } else {
+                    ctx.fillRect(cx + 2, cy + h - 2, 4, 2);
+                    ctx.fillRect(cx + w - 6, cy + h - 2, 4, 2);
+                }
+            } else {
+                // Tipe Gurita
+                ctx.fillRect(cx + 4, cy, w - 8, 4);
+                ctx.fillRect(cx + 2, cy + 4, w - 4, 6);
+                if (this.frame === 0) {
+                    ctx.fillRect(cx, cy + 10, 4, h-10);
+                    ctx.fillRect(cx + w/2 - 2, cy + 10, 4, h-10);
+                    ctx.fillRect(cx + w - 4, cy + 10, 4, h-10);
+                } else {
+                    ctx.fillRect(cx + 4, cy + 10, 4, h-10);
+                    ctx.fillRect(cx + w - 8, cy + 10, 4, h-10);
+                }
+            }
+        }
+    }
+
+    class UFO {
+        constructor() {
+            this.width = 32;
+            this.height = 14;
+            this.direction = Math.random() > 0.5 ? 1 : -1;
+            this.x = this.direction === 1 ? -this.width : GAME_WIDTH;
+            this.y = 40;
+            this.speed = 100 * this.direction;
+            this.color = COLORS.ufo;
+            this.points = Math.floor(Math.random() * 3 + 1) * 50; // 50, 100, 150
+            this.active = true;
+        }
+
+        update(dt) {
+            this.x += this.speed * dt;
+            if ((this.direction === 1 && this.x > GAME_WIDTH) || 
+                (this.direction === -1 && this.x < -this.width)) {
+                this.active = false;
+            }
+        }
+
+        draw(ctx) {
+            ctx.fillStyle = this.color;
+            ctx.fillRect(this.x + 8, this.y, this.width - 16, 4);
+            ctx.fillRect(this.x + 4, this.y + 4, this.width - 8, 4);
+            ctx.fillRect(this.x, this.y + 8, this.width, 4);
+            
+            // Jendela
+            ctx.fillStyle = COLORS.bg;
+            ctx.fillRect(this.x + 8, this.y + 4, 2, 2);
+            ctx.fillRect(this.x + 14, this.y + 4, 2, 2);
+            ctx.fillRect(this.x + 20, this.y + 4, 2, 2);
+        }
+    }
+
+    class Bullet {
+        constructor(x, y, vy, color, isPlayer) {
+            this.x = x;
+            this.y = y;
+            this.width = 2;
+            this.height = 8;
+            this.vy = vy; // velocity y
+            this.color = color;
+            this.isPlayer = isPlayer;
+            this.active = true;
+        }
+
+        update(dt) {
+            this.y += this.vy * dt;
+            if (this.y < 0 || this.y > GAME_HEIGHT) {
+                this.active = false;
+            }
+        }
+
+        draw(ctx) {
+            ctx.fillStyle = this.color;
+            ctx.fillRect(this.x, this.y, this.width, this.height);
+        }
+    }
+
+    class Particle {
+        constructor(x, y, color) {
+            this.x = x;
+            this.y = y;
+            this.vx = (Math.random() - 0.5) * 100;
+            this.vy = (Math.random() - 0.5) * 100;
+            this.life = 0.5; // detik
+            this.color = color;
+            this.size = Math.random() * 2 + 1;
+        }
+        update(dt) {
+            this.x += this.vx * dt;
+            this.y += this.vy * dt;
+            this.life -= dt;
+        }
+        draw(ctx) {
+            ctx.fillStyle = this.color;
+            ctx.fillRect(this.x, this.y, this.size, this.size);
+        }
+    }
+
+    // Bunker terbuat dari sel-sel kecil agar bisa hancur berkeping-keping
+    class Bunker {
+        constructor(x, y, healthMultiplier) {
+            this.x = x;
+            this.y = y;
+            this.cellSize = 4;
+            this.cells = []; // Array 2D
+            
+            // Bentuk dasar bunker
+            const shape = [
+                "  XXXXX  ",
+                " XXXXXXX ",
+                "XXXXXXXXX",
+                "XXXXXXXXX",
+                "XXX   XXX",
+                "XXX   XXX"
+            ];
+
+            for(let r=0; r<shape.length; r++) {
+                this.cells[r] = [];
+                for(let c=0; c<shape[r].length; c++) {
+                    if(shape[r][c] === 'X') {
+                        this.cells[r][c] = healthMultiplier; // HP per blok
+                    } else {
+                        this.cells[r][c] = 0;
+                    }
+                }
+            }
+            this.width = shape[0].length * this.cellSize;
+            this.height = shape.length * this.cellSize;
+        }
+
+        draw(ctx) {
+            for(let r=0; r<this.cells.length; r++) {
+                for(let c=0; c<this.cells[r].length; c++) {
+                    if (this.cells[r][c] > 0) {
+                        // Warna berubah semakin rusak
+                        let opacity = this.cells[r][c] >= 4 ? 1 : 
+                                      this.cells[r][c] === 3 ? 0.8 : 
+                                      this.cells[r][c] === 2 ? 0.6 : 0.4;
+                        ctx.fillStyle = `rgba(0, 255, 0, ${opacity})`;
+                        
+                        // Fallback ke solid color jika tidak mau rgba (sesuai req no gradien/glow, rgba ok untuk alpha)
+                        if(this.cells[r][c] < 2) ctx.fillStyle = '#005500'; // Hijau gelap
+                        else if(this.cells[r][c] < 4) ctx.fillStyle = '#00AA00'; // Hijau sedang
+                        else ctx.fillStyle = COLORS.bunker; // Hijau terang penuh
+
+                        ctx.fillRect(this.x + c * this.cellSize, this.y + r * this.cellSize, this.cellSize, this.cellSize);
+                    }
+                }
+            }
+        }
+
+        // Cek tabrakan dengan peluru dan kurangi HP sel
+        checkCollision(bullet) {
+            if(!bullet.active) return false;
+
+            // Cek Bounding Box kasar dulu
+            if (bullet.x < this.x + this.width && bullet.x + bullet.width > this.x &&
+                bullet.y < this.y + this.height && bullet.y + bullet.height > this.y) {
+                
+                // Cek detail per sel
+                let col = Math.floor((bullet.x - this.x) / this.cellSize);
+                let row = Math.floor((bullet.y - this.y) / this.cellSize);
+                
+                // Karena peluru bisa lebih kecil dari sel, cek beberapa titik
+                for (let r = Math.max(0, row-1); r <= Math.min(this.cells.length-1, row+1); r++) {
+                    for (let c = Math.max(0, col-1); c <= Math.min(this.cells[0].length-1, col+1); c++) {
+                        if (this.cells[r] && this.cells[r][c] > 0) {
+                            let cellX = this.x + c * this.cellSize;
+                            let cellY = this.y + r * this.cellSize;
+                            
+                            if (bullet.x < cellX + this.cellSize && bullet.x + bullet.width > cellX &&
+                                bullet.y < cellY + this.cellSize && bullet.y + bullet.height > cellY) {
+                                
+                                this.cells[r][c]--; // Kurangi HP bagian bunker
+                                bullet.active = false;
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+    }
+
+    // --- LOGIKA UTAMA GAME ---
+
+    const game = {
+        player: null,
+        aliens: [],
+        bullets: [],
+        particles: [],
+        bunkers: [],
+        ufo: null,
+        
+        score: 0,
+        lives: 3,
+        level: 1,
+        
+        alienDirection: 1, // 1: kanan, -1: kiri
+        alienBaseSpeed: 20,
+        alienCurrentSpeed: 20,
+        alienMoveDownFlag: false,
+        alienFireTimer: 0,
+        ufoTimer: 0,
+
+        init() {
+            const diff = DIFFICULTIES[currentDifficulty];
+            this.lives = diff.lives;
+            this.score = 0;
+            this.level = 1;
+            this.player = new Player();
+            this.createBunkers(diff.bunkerHealth);
+            this.startLevel();
+        },
+
+        startLevel() {
+            this.aliens = [];
+            this.bullets = [];
+            this.particles = [];
+            this.ufo = null;
+            this.alienDirection = 1;
+            
+            const diff = DIFFICULTIES[currentDifficulty];
+            
+            // Kecepatan meningkat tiap level
+            this.alienBaseSpeed = (20 + (this.level * 5)) * diff.speedMult;
+            this.alienCurrentSpeed = this.alienBaseSpeed;
+            this.alienMoveDownFlag = false;
+
+            // Formasi Alien: 5 baris x 11 kolom
+            const rows = 5;
+            const cols = 11;
+            const startX = 40;
+            const startY = 60 + (this.level % 3) * 10; // Turun sedikit di level tinggi
+
+            for (let r = 0; r < rows; r++) {
+                // Tipe alien berdasar baris
+                let type = 3; 
+                if (r === 1 || r === 2) type = 2;
+                if (r === 0) type = 1;
+
+                for (let c = 0; c < cols; c++) {
+                    let ax = startX + c * 28;
+                    let ay = startY + r * 24;
+                    this.aliens.push(new Alien(ax, ay, type));
+                }
+            }
+        },
+
+        createBunkers(health) {
+            this.bunkers = [];
+            const bunkerCount = 4;
+            const spacing = GAME_WIDTH / bunkerCount;
+            for (let i = 0; i < bunkerCount; i++) {
+                // Hitung posisi tengah setiap area
+                let bx = (i * spacing) + (spacing / 2) - 18; // 18 = setengah lebar bunker (approx)
+                let by = GAME_HEIGHT - 80;
+                this.bunkers.push(new Bunker(bx, by, health));
+            }
+        },
+
+        createExplosion(x, y, color, count = 10) {
+            for(let i=0; i<count; i++) {
+                this.particles.push(new Particle(x, y, color));
+            }
+        },
+
+        update(dt) {
+            // Update Player
+            this.player.update(dt);
+
+            // Update UFO
+            this.ufoTimer += dt;
+            if (!this.ufo && this.ufoTimer > 10) { // Coba spawn UFO tiap 10 detik
+                if (Math.random() < 0.3) {
+                    this.ufo = new UFO();
+                }
+                this.ufoTimer = 0;
+            }
+
+            if (this.ufo) {
+                this.ufo.update(dt);
+                if (!this.ufo.active) this.ufo = null;
+            }
+
+            // Update Aliens
+            let hitEdge = false;
+            let bottomMostAlienY = 0;
+
+            // Hitung kecepatan berdasarkan sisa alien (makin sedikit makin cepat)
+            const diff = DIFFICULTIES[currentDifficulty];
+            const ratio = this.aliens.length / 55; // 55 total awal
+            this.alienCurrentSpeed = this.alienBaseSpeed + (this.alienBaseSpeed * (1 - ratio) * 2);
+
+            this.aliens.forEach(alien => {
+                alien.x += this.alienCurrentSpeed * this.alienDirection * dt;
+                if (alien.y > bottomMostAlienY) bottomMostAlienY = alien.y;
+
+                if (alien.x < 10 || alien.x + alien.width > GAME_WIDTH - 10) {
+                    hitEdge = true;
+                }
+            });
+
+            if (hitEdge) {
+                this.alienDirection *= -1;
+                this.aliens.forEach(alien => {
+                    alien.y += 15; // Turun
+                    // Atur posisi agar tidak tersangkut di luar layar saat berubah arah
+                    if(this.alienDirection === 1) alien.x += 2; 
+                    else alien.x -= 2;
+                });
+            }
+
+            // Alien Menembak
+            this.alienFireTimer += dt;
+            const fireRate = Math.max(0.5, 2.0 - (this.level * 0.1)) / diff.fireRateMult; // Makin kecil makin cepat
+            
+            if (this.alienFireTimer > fireRate && this.aliens.length > 0) {
+                // Pilih alien random dari baris paling bawah setiap kolom
+                let shooters = [];
+                for(let i=0; i<this.aliens.length; i++) {
+                    let isBottom = true;
+                    for(let j=0; j<this.aliens.length; j++) {
+                        // Jika ada alien lain di kolom sama tapi lebih bawah
+                        if(i !== j && Math.abs(this.aliens[i].x - this.aliens[j].x) < 10 && this.aliens[j].y > this.aliens[i].y) {
+                            isBottom = false;
+                            break;
+                        }
+                    }
+                    if(isBottom) shooters.push(this.aliens[i]);
+                }
+
+                if(shooters.length > 0) {
+                    let shooter = shooters[Math.floor(Math.random() * shooters.length)];
+                    this.bullets.push(new Bullet(shooter.x + shooter.width/2, shooter.y + shooter.height, 200, COLORS.bulletAlien, false));
+                }
+                this.alienFireTimer = 0;
+            }
+
+            // Game Over jika alien mencapai bunker/player
+            if (bottomMostAlienY > GAME_HEIGHT - 90) {
+                setGameOver();
+                return;
+            }
+
+            // Update Bullets & Collisions
+            for (let i = this.bullets.length - 1; i >= 0; i--) {
+                let b = this.bullets[i];
+                b.update(dt);
+
+                // Tabrakan dengan Bunker
+                this.bunkers.forEach(bunker => bunker.checkCollision(b));
+
+                if (!b.active) {
+                    this.bullets.splice(i, 1);
+                    continue;
+                }
+
+                // Peluru Player
+                if (b.isPlayer) {
+                    // Kena Alien?
+                    for (let j = this.aliens.length - 1; j >= 0; j--) {
+                        let a = this.aliens[j];
+                        if (b.x < a.x + a.width && b.x + b.width > a.x &&
+                            b.y < a.y + a.height && b.y + b.height > a.y) {
+                            
+                            this.createExplosion(a.x + a.width/2, a.y + a.height/2, a.color);
+                            this.score += a.points;
+                            this.aliens.splice(j, 1);
+                            b.active = false;
+                            break;
+                        }
+                    }
+
+                    // Kena UFO?
+                    if (this.ufo && b.active && 
+                        b.x < this.ufo.x + this.ufo.width && b.x + b.width > this.ufo.x &&
+                        b.y < this.ufo.y + this.ufo.height && b.y + b.height > this.ufo.y) {
+                        
+                        this.createExplosion(this.ufo.x + this.ufo.width/2, this.ufo.y + this.ufo.height/2, COLORS.ufo, 20);
+                        this.score += this.ufo.points;
+                        this.ufo = null;
+                        b.active = false;
+                    }
+                } 
+                // Peluru Alien
+                else {
+                    // Kena Player?
+                    let p = this.player;
+                    if (b.x < p.x + p.width && b.x + b.width > p.x &&
+                        b.y < p.y + p.height && b.y + b.height > p.y) {
+                        
+                        this.createExplosion(p.x + p.width/2, p.y + p.height/2, COLORS.player, 30);
+                        b.active = false;
+                        this.lives--;
+                        
+                        if (this.lives <= 0) {
+                            setGameOver();
+                            return;
+                        } else {
+                            // Reset peluru dan player, berikan delay (disimulasikan dengan mengosongkan peluru musuh di area dekat)
+                            this.bullets = this.bullets.filter(bul => bul.isPlayer);
+                        }
+                    }
+                }
+
+                if (!b.active) this.bullets.splice(i, 1);
+            }
+
+            // Update Partikel
+            for (let i = this.particles.length - 1; i >= 0; i--) {
+                this.particles[i].update(dt);
+                if (this.particles[i].life <= 0) {
+                    this.particles.splice(i, 1);
+                }
+            }
+
+            // Cek Level Clear
+            if (this.aliens.length === 0) {
+                this.level++;
+                this.startLevel(); // Regenerasi alien tanpa mereset skor/nyawa/bunker
+            }
+        },
+
+        draw(ctx) {
+            // Latar Belakang
+            ctx.fillStyle = COLORS.bg;
+            ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+            // Entitas
+            if(this.ufo) this.ufo.draw(ctx);
+            this.aliens.forEach(a => a.draw(ctx));
+            this.bunkers.forEach(b => b.draw(ctx));
+            this.bullets.forEach(b => b.draw(ctx));
+            this.particles.forEach(p => p.draw(ctx));
+            
+            if (this.lives > 0) this.player.draw(ctx);
+
+            // UI Atas (Skor, Nyawa)
+            ctx.fillStyle = COLORS.text;
+            ctx.font = '10px "Press Start 2P"';
+            ctx.textAlign = 'left';
+            ctx.fillText(`SKOR: ${this.score}`, 10, 20);
+            
+            ctx.textAlign = 'right';
+            ctx.fillText(`NYAWA: ${this.lives}`, GAME_WIDTH - 10, 20);
+
+            ctx.textAlign = 'center';
+            ctx.fillText(`LV: ${this.level}`, GAME_WIDTH/2, 20);
+
+            // Garis pembatas bawah (opsional, gaya arcade)
+            ctx.fillStyle = '#0f0';
+            ctx.fillRect(0, GAME_HEIGHT - 2, GAME_WIDTH, 2);
+        }
+    };
+
+    // --- MANAJEMEN STATE & LOOP ---
+
+    function gameLoop(timestamp) {
+        if (!lastTime) lastTime = timestamp;
+        let dt = (timestamp - lastTime) / 1000;
+        lastTime = timestamp;
+
+        // Batasi dt agar tidak loncat jauh jika tab pindah
+        if (dt > 0.1) dt = 0.1;
+
+        if (gameState === 'playing') {
+            game.update(dt);
+            game.draw(ctx);
+        }
+
+        animationId = requestAnimationFrame(gameLoop);
+    }
+
+    function startGame() {
+        uiMenu.classList.add('hidden');
+        uiGameOver.classList.add('hidden');
+        uiPause.classList.add('hidden');
+        
+        if (gameState !== 'paused') {
+            game.init();
+        }
+        
+        gameState = 'playing';
+        lastTime = performance.now(); // Reset time to prevent delta jump
+        if (!animationId) animationId = requestAnimationFrame(gameLoop);
+    }
+
+    function togglePause() {
+        if (gameState === 'playing') {
+            gameState = 'paused';
+            uiPause.classList.remove('hidden');
+        } else if (gameState === 'paused') {
+            gameState = 'playing';
+            uiPause.classList.add('hidden');
+            lastTime = performance.now();
+        }
+    }
+
+    function setGameOver() {
+        gameState = 'gameover';
+        scoreDisplay.innerText = game.score;
+        uiGameOver.classList.remove('hidden');
+    }
+
+    function goToMenu() {
+        gameState = 'menu';
+        uiGameOver.classList.add('hidden');
+        uiPause.classList.add('hidden');
+        uiMenu.classList.remove('hidden');
+        
+        // Bersihkan layar
+        ctx.fillStyle = COLORS.bg;
+        ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    }
+
+    // --- EVENT LISTENERS ---
+
+    // Keyboard Input
+    window.addEventListener('keydown', (e) => {
+        if (keys.hasOwnProperty(e.code)) {
+            keys[e.code] = true;
+            // Prevent default scrolling for space and arrows
+            if(e.code === 'Space' || e.code === 'ArrowLeft' || e.code === 'ArrowRight') e.preventDefault();
+        }
+        
+        if (e.code === 'KeyP' || e.code === 'Escape') {
+            if (gameState === 'playing' || gameState === 'paused') {
+                togglePause();
+            }
+        }
+    });
+
+    window.addEventListener('keyup', (e) => {
+        if (keys.hasOwnProperty(e.code)) keys[e.code] = false;
+    });
+
+    // UI Buttons
+    document.querySelectorAll('.diff-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('selected'));
+            e.target.classList.add('selected');
+            currentDifficulty = e.target.dataset.diff;
+        });
+    });
+
+    document.getElementById('btn-start').addEventListener('click', startGame);
+    document.getElementById('btn-resume').addEventListener('click', togglePause);
+    document.getElementById('btn-quit').addEventListener('click', goToMenu);
+    document.getElementById('btn-restart').addEventListener('click', () => {
+        gameState = 'menu'; // Reset state logic
+        startGame();
+    });
+    document.getElementById('btn-menu-go').addEventListener('click', goToMenu);
+
+    // Mobile Controls Events
+    const btnLeft = document.getElementById('btn-left');
+    const btnRight = document.getElementById('btn-right');
+    const btnFire = document.getElementById('btn-fire');
+    const btnPauseMobile = document.getElementById('btn-pause-mobile');
+
+    // Helper untuk menangani sentuhan (mencegah klik ganda yang aneh di mobile)
+    function addTouchAndMouse(elem, downHandler, upHandler) {
+        elem.addEventListener('touchstart', (e) => { e.preventDefault(); downHandler(); });
+        elem.addEventListener('mousedown', (e) => { e.preventDefault(); downHandler(); });
+        elem.addEventListener('touchend', (e) => { e.preventDefault(); upHandler(); });
+        elem.addEventListener('mouseup', (e) => { e.preventDefault(); upHandler(); });
+        elem.addEventListener('mouseleave', (e) => { e.preventDefault(); upHandler(); });
+    }
+
+    addTouchAndMouse(btnLeft, 
+        () => { keys.ArrowLeft = true; }, 
+        () => { keys.ArrowLeft = false; }
+    );
+    
+    addTouchAndMouse(btnRight, 
+        () => { keys.ArrowRight = true; }, 
+        () => { keys.ArrowRight = false; }
+    );
+    
+    addTouchAndMouse(btnFire, 
+        () => { keys.Space = true; }, 
+        () => { keys.Space = false; }
+    );
+
+    btnPauseMobile.addEventListener('click', () => {
+        if (gameState === 'playing' || gameState === 'paused') togglePause();
+    });
+
+    // Inisialisasi visual layar utama
+    ctx.fillStyle = COLORS.bg;
+    ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    
+    // Mulai loop animasi untuk standby (meskipun layar kosong tertutup menu)
+    requestAnimationFrame(gameLoop);
+
+</script>
+</body>
+</html>

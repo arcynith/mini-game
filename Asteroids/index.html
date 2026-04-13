@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Asteroids Klasik</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Mencegah default touch action seperti scroll atau zoom pada mobile */
+        body {
+            touch-action: none;
+            overflow: hidden;
+            background-color: black;
+            color: white;
+            font-family: 'Courier New', Courier, monospace;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        
+        canvas {
+            display: block;
+        }
+
+        /* Gaya UI bergaya retro tanpa efek glow/shadow yang berlebihan */
+        .retro-btn {
+            background-color: black;
+            color: white;
+            border: 2px solid white;
+            padding: 10px 20px;
+            font-size: 1.2rem;
+            font-family: 'Courier New', Courier, monospace;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: background-color 0.2s, color 0.2s;
+        }
+
+        .retro-btn:hover, .retro-btn:active {
+            background-color: white;
+            color: black;
+        }
+
+        .retro-btn.selected {
+            background-color: white;
+            color: black;
+        }
+
+        .touch-btn {
+            background-color: rgba(0, 0, 0, 0.5);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            color: rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .touch-btn:active {
+            background-color: rgba(255, 255, 255, 0.3);
+            border-color: white;
+            color: white;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        #ui-layer > * {
+            pointer-events: auto;
+        }
+
+        /* Menyembunyikan elemen */
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <!-- Game Canvas -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- UI Overlay Layer -->
+    <div id="ui-layer" class="flex flex-col">
+        
+        <!-- HUD (Heads Up Display) -->
+        <div id="hud" class="hidden flex justify-between items-start p-4 w-full">
+            <div>
+                <div class="text-2xl font-bold tracking-widest">SKOR: <span id="scoreDisplay">0</span></div>
+                <div class="text-xl mt-1 tracking-widest">NYAWA: <span id="livesDisplay">3</span></div>
+            </div>
+            <button id="btnPause" class="retro-btn !p-2 !text-sm">JEDA ||</button>
+        </div>
+
+        <!-- Main Menu -->
+        <div id="mainMenu" class="absolute inset-0 flex flex-col items-center justify-center bg-black">
+            <h1 class="text-5xl md:text-7xl font-bold tracking-widest mb-8 text-center">ASTEROIDS</h1>
+            
+            <div class="mb-8 text-center">
+                <p class="mb-4 text-xl tracking-widest">TINGKAT KESULITAN:</p>
+                <div class="flex gap-4 justify-center flex-wrap">
+                    <button class="retro-btn diff-btn selected" data-diff="easy">MUDAH</button>
+                    <button class="retro-btn diff-btn" data-diff="medium">SEDANG</button>
+                    <button class="retro-btn diff-btn" data-diff="hard">SULIT</button>
+                </div>
+            </div>
+
+            <button id="btnStart" class="retro-btn text-2xl px-8 py-4 mt-4">MULAI GAME</button>
+            
+            <div class="mt-12 text-center text-sm opacity-70">
+                <p class="hidden md:block">Gunakan Panah Kiri/Kanan untuk rotasi, Panah Atas untuk maju.</p>
+                <p class="hidden md:block">Spasi untuk menembak, P untuk Jeda.</p>
+                <p class="block md:hidden">Gunakan kontrol sentuh di layar untuk bermain.</p>
+            </div>
+        </div>
+
+        <!-- Pause Menu -->
+        <div id="pauseMenu" class="hidden absolute inset-0 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm">
+            <h2 class="text-5xl font-bold tracking-widest mb-8">DIJEDA</h2>
+            <button id="btnResume" class="retro-btn text-xl mb-4">LANJUTKAN</button>
+            <button id="btnQuit" class="retro-btn text-xl">KEMBALI KE MENU</button>
+        </div>
+
+        <!-- Game Over Menu -->
+        <div id="gameOverMenu" class="hidden absolute inset-0 flex flex-col items-center justify-center bg-black/90">
+            <h2 class="text-6xl font-bold tracking-widest mb-4">GAME OVER</h2>
+            <p class="text-2xl mb-8 tracking-widest">SKOR AKHIR: <span id="finalScore">0</span></p>
+            <button id="btnRestart" class="retro-btn text-2xl">MAIN LAGI</button>
+        </div>
+
+        <!-- Mobile Touch Controls -->
+        <div id="touchControls" class="hidden absolute bottom-4 left-0 w-full flex justify-between px-4 pb-4 md:hidden">
+            <div class="flex gap-4">
+                <div id="btnLeft" class="touch-btn">⭠</div>
+                <div id="btnRight" class="touch-btn">⭢</div>
+            </div>
+            <div class="flex gap-4">
+                <div id="btnFire" class="touch-btn">🎯</div>
+                <div id="btnThrust" class="touch-btn">⯅</div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        /**
+         * ENGINE GAME ASTEROIDS KLASIK
+         * Gaya visual sengaja dibuat wireframe/vector (tanpa shadowBlur/glow)
+         */
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // UI Elements
+        const mainMenu = document.getElementById('mainMenu');
+        const hud = document.getElementById('hud');
+        const pauseMenu = document.getElementById('pauseMenu');
+        const gameOverMenu = document.getElementById('gameOverMenu');
+        const touchControls = document.getElementById('touchControls');
+        
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const livesDisplay = document.getElementById('livesDisplay');
+        const finalScore = document.getElementById('finalScore');
+
+        // Konstanta Fisika dan Game
+        const FPS = 60;
+        const FRICTION = 0.99;
+        const SHIP_SIZE = 15;
+        const TURN_SPEED = 360; // Derajat per detik
+        const THRUST = 5; // Akselerasi (pixel per detik)
+        const MAX_SPEED = 10;
+        const BULLET_SPEED = 500; // Pixel per detik
+        const BULLET_MAX_DIST = 0.6; // Fraksi dari lebar layar sebelum peluru hilang
+        
+        // Pengaturan Kesulitan
+        const DIFFICULTY_SETTINGS = {
+            easy: { astCount: 3, astSpeed: 1, astSize: 100 },
+            medium: { astCount: 5, astSpeed: 1.5, astSize: 80 },
+            hard: { astCount: 8, astSpeed: 2.2, astSize: 60 }
+        };
+        let currentDifficulty = 'easy';
+
+        // State Game
+        let state = 'MENU'; // MENU, PLAYING, PAUSED, GAMEOVER
+        let score = 0;
+        let lives = 3;
+        let level = 0;
+        
+        // Entitas Game
+        let ship;
+        let asteroids = [];
+        let bullets = [];
+        let particles = [];
+
+        // Input
+        const keys = {
+            left: false,
+            right: false,
+            thrust: false,
+            fire: false
+        };
+
+        // Resize handler
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // Cek perangkat mobile untuk menampilkan kontrol sentuh
+        function isMobile() {
+            return ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+        }
+
+        // --- CLASSES ENTITAS ---
+
+        class Ship {
+            constructor() {
+                this.x = canvas.width / 2;
+                this.y = canvas.height / 2;
+                this.r = SHIP_SIZE;
+                this.a = 90 / 180 * Math.PI; // Menghadap ke atas
+                this.rot = 0;
+                this.thrusting = false;
+                this.vx = 0;
+                this.vy = 0;
+                this.explodeTime = 0;
+                this.blinkTime = Math.ceil(0.1 * FPS);
+                this.blinkNum = Math.ceil(3 * FPS / (0.1 * FPS)); // Kebal 3 detik
+                this.canShoot = true;
+                this.dead = false;
+            }
+
+            update() {
+                if (this.dead) return;
+
+                // Kebal / berkedip (Invulnerability)
+                const blinkOn = this.blinkNum % 2 == 0;
+
+                // Rotasi
+                this.a += this.rot;
+
+                // Momentum / Thrust
+                if (this.thrusting) {
+                    this.vx += THRUST * Math.cos(this.a) / FPS;
+                    this.vy -= THRUST * Math.sin(this.a) / FPS;
+                    
+                    // Batas kecepatan maksimal
+                    const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+                    if (speed > MAX_SPEED) {
+                        this.vx = (this.vx / speed) * MAX_SPEED;
+                        this.vy = (this.vy / speed) * MAX_SPEED;
+                    }
+                } else {
+                    // Gesekan (Friction)
+                    this.vx *= FRICTION;
+                    this.vy *= FRICTION;
+                }
+
+                // Pergerakan
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // Batas Layar (Wrap around)
+                if (this.x < 0 - this.r) this.x = canvas.width + this.r;
+                else if (this.x > canvas.width + this.r) this.x = 0 - this.r;
+                if (this.y < 0 - this.r) this.y = canvas.height + this.r;
+                else if (this.y > canvas.height + this.r) this.y = 0 - this.r;
+
+                // Kurangi waktu kedip
+                if (this.blinkNum > 0) {
+                    this.blinkTime--;
+                    if (this.blinkTime == 0) {
+                        this.blinkTime = Math.ceil(0.1 * FPS);
+                        this.blinkNum--;
+                    }
+                }
+            }
+
+            draw() {
+                if (this.dead) return;
+                
+                const blinkOn = this.blinkNum % 2 == 0;
+                if (!blinkOn && this.blinkNum > 0) return;
+
+                ctx.strokeStyle = "white";
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                
+                // Hidung kapal
+                ctx.moveTo(
+                    this.x + 4 / 3 * this.r * Math.cos(this.a),
+                    this.y - 4 / 3 * this.r * Math.sin(this.a)
+                );
+                // Kiri belakang
+                ctx.lineTo(
+                    this.x - this.r * (2 / 3 * Math.cos(this.a) + Math.sin(this.a)),
+                    this.y + this.r * (2 / 3 * Math.sin(this.a) - Math.cos(this.a))
+                );
+                // Kanan belakang
+                ctx.lineTo(
+                    this.x - this.r * (2 / 3 * Math.cos(this.a) - Math.sin(this.a)),
+                    this.y + this.r * (2 / 3 * Math.sin(this.a) + Math.cos(this.a))
+                );
+                ctx.closePath();
+                ctx.stroke();
+
+                // Menggambar efek thruster (tanpa glow, hanya garis)
+                if (this.thrusting) {
+                    ctx.strokeStyle = "white";
+                    ctx.beginPath();
+                    ctx.moveTo(
+                        this.x - this.r * (2 / 3 * Math.cos(this.a) + 0.5 * Math.sin(this.a)),
+                        this.y + this.r * (2 / 3 * Math.sin(this.a) - 0.5 * Math.cos(this.a))
+                    );
+                    ctx.lineTo(
+                        this.x - this.r * 5 / 3 * Math.cos(this.a),
+                        this.y + this.r * 5 / 3 * Math.sin(this.a)
+                    );
+                    ctx.lineTo(
+                        this.x - this.r * (2 / 3 * Math.cos(this.a) - 0.5 * Math.sin(this.a)),
+                        this.y + this.r * (2 / 3 * Math.sin(this.a) + 0.5 * Math.cos(this.a))
+                    );
+                    ctx.stroke();
+                }
+            }
+
+            shoot() {
+                if (this.canShoot && bullets.length < 5 && !this.dead) { // Batas peluru max 5
+                    bullets.push(new Bullet(
+                        this.x + 4/3 * this.r * Math.cos(this.a),
+                        this.y - 4/3 * this.r * Math.sin(this.a),
+                        this.a
+                    ));
+                    this.canShoot = false;
+                    // Cooldown tembakan
+                    setTimeout(() => { this.canShoot = true; }, 150);
+                }
+            }
+
+            die() {
+                this.dead = true;
+                lives--;
+                updateHUD();
+                createExplosion(this.x, this.y, 30);
+                
+                if (lives < 0) {
+                    gameOver();
+                } else {
+                    setTimeout(() => {
+                        ship = new Ship();
+                    }, 1500);
+                }
+            }
+        }
+
+        class Asteroid {
+            constructor(x, y, r, levelDiff) {
+                this.x = x;
+                this.y = y;
+                this.r = r;
+                
+                // Acak kecepatan berdasarkan tingkat kesulitan
+                const speedMult = DIFFICULTY_SETTINGS[currentDifficulty].astSpeed * (1 + levelDiff * 0.1);
+                const lvlMult = 1 + levelDiff * 0.1;
+                this.xv = Math.random() * speedMult * (Math.random() < 0.5 ? 1 : -1);
+                this.yv = Math.random() * speedMult * (Math.random() < 0.5 ? 1 : -1);
+                
+                this.a = Math.random() * Math.PI * 2;
+                this.vert = Math.floor(Math.random() * 5 + 7); // 7-11 sudut
+                this.offs = [];
+                for (let i = 0; i < this.vert; i++) {
+                    this.offs.push(Math.random() * 0.4 * 2 + 1 - 0.4);
+                }
+            }
+
+            update() {
+                this.x += this.xv;
+                this.y += this.yv;
+
+                // Batas Layar
+                if (this.x < 0 - this.r) this.x = canvas.width + this.r;
+                else if (this.x > canvas.width + this.r) this.x = 0 - this.r;
+                if (this.y < 0 - this.r) this.y = canvas.height + this.r;
+                else if (this.y > canvas.height + this.r) this.y = 0 - this.r;
+            }
+
+            draw() {
+                ctx.strokeStyle = "white";
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                for (let j = 0; j < this.vert; j++) {
+                    ctx.lineTo(
+                        this.x + this.r * this.offs[j] * Math.cos(this.a + j * Math.PI * 2 / this.vert),
+                        this.y + this.r * this.offs[j] * Math.sin(this.a + j * Math.PI * 2 / this.vert)
+                    );
+                }
+                ctx.closePath();
+                ctx.stroke();
+            }
+        }
+
+        class Bullet {
+            constructor(x, y, angle) {
+                this.x = x;
+                this.y = y;
+                this.xv = BULLET_SPEED * Math.cos(angle) / FPS;
+                this.yv = -BULLET_SPEED * Math.sin(angle) / FPS;
+                this.dist = 0;
+            }
+
+            update() {
+                this.x += this.xv;
+                this.y += this.yv;
+                this.dist += Math.sqrt(this.xv * this.xv + this.yv * this.yv);
+            }
+
+            draw() {
+                ctx.fillStyle = "white";
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 2, 0, Math.PI * 2, false);
+                ctx.fill();
+            }
+        }
+
+        class Particle {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.xv = (Math.random() - 0.5) * (Math.random() * 5);
+                this.yv = (Math.random() - 0.5) * (Math.random() * 5);
+                this.life = 1.0;
+                this.decay = Math.random() * 0.02 + 0.02;
+            }
+            update() {
+                this.x += this.xv;
+                this.y += this.yv;
+                this.life -= this.decay;
+            }
+            draw() {
+                ctx.fillStyle = `rgba(255, 255, 255, ${this.life})`;
+                ctx.beginPath();
+                ctx.rect(this.x, this.y, 2, 2);
+                ctx.fill();
+            }
+        }
+
+        // --- SISTEM GAME ---
+
+        function createAsteroids() {
+            asteroids = [];
+            let x, y;
+            const diff = DIFFICULTY_SETTINGS[currentDifficulty];
+            const numAsteroids = diff.astCount + level;
+            
+            for (let i = 0; i < numAsteroids; i++) {
+                // Jangan spawn dekat kapal
+                do {
+                    x = Math.floor(Math.random() * canvas.width);
+                    y = Math.floor(Math.random() * canvas.height);
+                } while (ship && distanceBetweenPoints(ship.x, ship.y, x, y) < diff.astSize * 2 + ship.r);
+                
+                asteroids.push(new Asteroid(x, y, Math.ceil(diff.astSize / 2), level));
+            }
+        }
+
+        function createExplosion(x, y, count) {
+            for (let i = 0; i < count; i++) {
+                particles.push(new Particle(x, y));
+            }
+        }
+
+        function distanceBetweenPoints(x1, y1, x2, y2) {
+            return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+        }
+
+        function handleCollisions() {
+            if (ship.dead) return;
+
+            // Cek tabrakan Peluru ke Asteroid
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                let bulletHit = false;
+                for (let j = asteroids.length - 1; j >= 0; j--) {
+                    if (distanceBetweenPoints(asteroids[j].x, asteroids[j].y, bullets[i].x, bullets[i].y) < asteroids[j].r) {
+                        
+                        // Hancurkan Asteroid
+                        const ast = asteroids[j];
+                        createExplosion(ast.x, ast.y, 10);
+                        
+                        // Tambah skor berdasarkan ukuran
+                        if (ast.r > 30) score += 20;
+                        else if (ast.r > 15) score += 50;
+                        else score += 100;
+                        updateHUD();
+
+                        // Pecah jika cukup besar
+                        if (ast.r > 15) {
+                            asteroids.push(new Asteroid(ast.x, ast.y, ast.r / 2, level));
+                            asteroids.push(new Asteroid(ast.x, ast.y, ast.r / 2, level));
+                        }
+                        
+                        asteroids.splice(j, 1);
+                        bulletHit = true;
+                        break;
+                    }
+                }
+                if (bulletHit) {
+                    bullets.splice(i, 1);
+                }
+            }
+
+            // Cek tabrakan Kapal ke Asteroid (hanya jika tidak kebal)
+            if (ship.blinkNum == 0) {
+                for (let i = 0; i < asteroids.length; i++) {
+                    if (distanceBetweenPoints(ship.x, ship.y, asteroids[i].x, asteroids[i].y) < ship.r + asteroids[i].r) {
+                        ship.die();
+                        break;
+                    }
+                }
+            }
+        }
+
+        function updateHUD() {
+            scoreDisplay.innerText = score;
+            livesDisplay.innerText = lives < 0 ? 0 : lives;
+        }
+
+        function startGame() {
+            mainMenu.classList.add('hidden');
+            gameOverMenu.classList.add('hidden');
+            pauseMenu.classList.add('hidden');
+            hud.classList.remove('hidden');
+            if (isMobile()) touchControls.classList.remove('hidden');
+            
+            score = 0;
+            lives = 3;
+            level = 0;
+            bullets = [];
+            particles = [];
+            ship = new Ship();
+            createAsteroids();
+            updateHUD();
+            
+            state = 'PLAYING';
+        }
+
+        function gameOver() {
+            state = 'GAMEOVER';
+            hud.classList.add('hidden');
+            touchControls.classList.add('hidden');
+            gameOverMenu.classList.remove('hidden');
+            finalScore.innerText = score;
+        }
+
+        function togglePause() {
+            if (state === 'PLAYING') {
+                state = 'PAUSED';
+                pauseMenu.classList.remove('hidden');
+            } else if (state === 'PAUSED') {
+                state = 'PLAYING';
+                pauseMenu.classList.add('hidden');
+            }
+        }
+
+        // --- INPUT HANDLERS ---
+
+        document.addEventListener("keydown", (e) => {
+            if (state !== 'PLAYING' && state !== 'PAUSED') return;
+
+            switch(e.keyCode) {
+                case 37: // Kiri
+                    keys.left = true;
+                    if(ship && !ship.dead) ship.rot = TURN_SPEED / 180 * Math.PI / FPS;
+                    break;
+                case 39: // Kanan
+                    keys.right = true;
+                    if(ship && !ship.dead) ship.rot = -TURN_SPEED / 180 * Math.PI / FPS;
+                    break;
+                case 38: // Atas
+                    keys.thrust = true;
+                    if(ship && !ship.dead) ship.thrusting = true;
+                    break;
+                case 32: // Spasi
+                    keys.fire = true;
+                    if(ship && !ship.dead) ship.shoot();
+                    break;
+                case 80: // P - Pause
+                    togglePause();
+                    break;
+            }
+        });
+
+        document.addEventListener("keyup", (e) => {
+            if (state !== 'PLAYING') return;
+
+            switch(e.keyCode) {
+                case 37: 
+                    keys.left = false;
+                    if (!keys.right && ship) ship.rot = 0;
+                    break;
+                case 39: 
+                    keys.right = false;
+                    if (!keys.left && ship) ship.rot = 0;
+                    break;
+                case 38: 
+                    keys.thrust = false;
+                    if(ship) ship.thrusting = false;
+                    break;
+                case 32:
+                    keys.fire = false;
+                    break;
+            }
+        });
+
+        // Event listener tingkat kesulitan
+        document.querySelectorAll('.diff-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('selected'));
+                e.target.classList.add('selected');
+                currentDifficulty = e.target.getAttribute('data-diff');
+            });
+        });
+
+        // Event listener tombol UI
+        document.getElementById('btnStart').addEventListener('click', startGame);
+        document.getElementById('btnRestart').addEventListener('click', startGame);
+        document.getElementById('btnPause').addEventListener('click', togglePause);
+        document.getElementById('btnResume').addEventListener('click', togglePause);
+        document.getElementById('btnQuit').addEventListener('click', () => {
+            state = 'MENU';
+            pauseMenu.classList.add('hidden');
+            hud.classList.add('hidden');
+            touchControls.classList.add('hidden');
+            mainMenu.classList.remove('hidden');
+        });
+
+        // Event listener Sentuh (Touch Controls)
+        function bindTouch(btnId, downFn, upFn) {
+            const btn = document.getElementById(btnId);
+            btn.addEventListener('touchstart', (e) => { e.preventDefault(); downFn(); });
+            btn.addEventListener('touchend', (e) => { e.preventDefault(); upFn(); });
+            btn.addEventListener('touchcancel', (e) => { e.preventDefault(); upFn(); });
+        }
+
+        bindTouch('btnLeft', 
+            () => { if(ship && !ship.dead) ship.rot = TURN_SPEED / 180 * Math.PI / FPS; keys.left = true; },
+            () => { if(ship && !keys.right) ship.rot = 0; keys.left = false; }
+        );
+        bindTouch('btnRight', 
+            () => { if(ship && !ship.dead) ship.rot = -TURN_SPEED / 180 * Math.PI / FPS; keys.right = true; },
+            () => { if(ship && !keys.left) ship.rot = 0; keys.right = false; }
+        );
+        bindTouch('btnThrust', 
+            () => { if(ship && !ship.dead) ship.thrusting = true; },
+            () => { if(ship) ship.thrusting = false; }
+        );
+        bindTouch('btnFire', 
+            () => { if(ship && !ship.dead) ship.shoot(); },
+            () => {}
+        );
+
+        // --- GAME LOOP ---
+
+        function update() {
+            if (state === 'PLAYING') {
+                if (ship) ship.update();
+                
+                asteroids.forEach(a => a.update());
+                
+                // Update & bersihkan peluru
+                for (let i = bullets.length - 1; i >= 0; i--) {
+                    bullets[i].update();
+                    // Peluru hilang jika mencapai batas jarak atau keluar batas tepi layar
+                    if (bullets[i].dist > canvas.width * BULLET_MAX_DIST || 
+                        bullets[i].x < 0 || bullets[i].x > canvas.width || 
+                        bullets[i].y < 0 || bullets[i].y > canvas.height) {
+                        bullets.splice(i, 1);
+                    }
+                }
+
+                // Update partikel
+                for (let i = particles.length - 1; i >= 0; i--) {
+                    particles[i].update();
+                    if (particles[i].life <= 0) {
+                        particles.splice(i, 1);
+                    }
+                }
+
+                handleCollisions();
+
+                // Lanjut ke level berikutnya jika semua asteroid hancur
+                if (asteroids.length === 0 && ship && !ship.dead) {
+                    level++;
+                    createAsteroids();
+                }
+            }
+        }
+
+        function draw() {
+            // Bersihkan kanvas (Background Hitam)
+            ctx.fillStyle = "black";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            if (state === 'PLAYING' || state === 'PAUSED' || state === 'GAMEOVER') {
+                asteroids.forEach(a => a.draw());
+                bullets.forEach(b => b.draw());
+                particles.forEach(p => p.draw());
+                if (ship) ship.draw();
+            }
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Mulai Loop
+        requestAnimationFrame(gameLoop);
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connect Four - Susun 4</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap');
+
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: #f0fdf4; /* Hijau sangat muda agar fresh */
+        }
+
+        /* Gaya Papan Utama */
+        .board-container {
+            background-color: #2563eb; /* Biru terang khas mainan plastik */
+            border-radius: 12px;
+            box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.5), inset 0 4px 6px rgba(255,255,255,0.2);
+            padding: 12px;
+        }
+
+        /* Gaya untuk Lubang & Koin */
+        .cell {
+            aspect-ratio: 1 / 1;
+            border-radius: 50%;
+            position: relative;
+            overflow: hidden;
+            /* Default: Lubang kosong */
+            background-color: #1e3a8a; /* Biru sangat gelap (menyerupai lubang tembus pandang) */
+            box-shadow: inset 0px 6px 10px rgba(0, 0, 0, 0.6);
+            transition: transform 0.1s ease;
+        }
+
+        /* Koin Pemain (Merah & Kuning) menggunakan pseudo-element agar bisa dianimasikan jatuh */
+        .cell::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            border-radius: 50%;
+            opacity: 0;
+            transform: translateY(-400%);
+        }
+
+        .cell.player1::before {
+            background-color: #ef4444; /* Merah */
+            box-shadow: inset -4px -4px 8px rgba(0,0,0,0.2), inset 4px 4px 8px rgba(255,255,255,0.4);
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .cell.player2::before {
+            background-color: #eab308; /* Kuning */
+            box-shadow: inset -4px -4px 8px rgba(0,0,0,0.2), inset 4px 4px 8px rgba(255,255,255,0.5);
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Animasi jatuh (Drop) */
+        .cell.drop-anim::before {
+            animation: dropPiece 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+        }
+
+        @keyframes dropPiece {
+            0% { transform: translateY(-500%); opacity: 0; }
+            50% { opacity: 1; }
+            100% { transform: translateY(0); opacity: 1; }
+        }
+
+        /* Gaya Menu Card Terpilih */
+        .card-selected {
+            border-color: #3b82f6 !important;
+            background-color: #eff6ff !important;
+            box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2) !important;
+        }
+        
+        .card-selected svg {
+            color: #2563eb !important;
+        }
+
+        .card-selected h3 {
+            color: #1d4ed8 !important;
+        }
+
+        /* Tombol Kesulitan Terpilih */
+        .diff-selected {
+            background-color: #10b981 !important;
+            color: white !important;
+            border-color: #059669 !important;
+        }
+    </style>
+</head>
+<body class="text-gray-800 min-h-screen flex items-center justify-center select-none p-4">
+
+    <!-- MAIN MENU -->
+    <div id="main-menu" class="w-full max-w-md bg-white p-6 sm:p-8 rounded-2xl shadow-xl">
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-extrabold text-blue-700 tracking-tight mb-1">Susun 4</h1>
+            <p class="text-gray-500 font-semibold">Classic Connect Four Game</p>
+        </div>
+        
+        <div class="space-y-6">
+            <!-- Pilihan Mode -->
+            <div>
+                <h2 class="text-sm uppercase tracking-wider font-bold text-gray-400 mb-3">1. Pilih Lawan</h2>
+                <div class="grid grid-cols-2 gap-4">
+                    <!-- Kartu PvP -->
+                    <div id="card-pvp" class="menu-card cursor-pointer border-2 border-gray-200 bg-white rounded-xl p-4 text-center transition hover:border-blue-300 card-selected" onclick="setMode('pvp')">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 mx-auto text-gray-400 mb-2 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                        </svg>
+                        <h3 class="font-bold text-gray-600 transition">Teman</h3>
+                        <p class="text-xs text-gray-400 mt-1">2 Pemain 1 HP</p>
+                    </div>
+                    <!-- Kartu PvE -->
+                    <div id="card-pve" class="menu-card cursor-pointer border-2 border-gray-200 bg-white rounded-xl p-4 text-center transition hover:border-blue-300" onclick="setMode('pve')">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 mx-auto text-gray-400 mb-2 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                        <h3 class="font-bold text-gray-600 transition">Komputer</h3>
+                        <p class="text-xs text-gray-400 mt-1">Main Sendiri</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pilihan Kesulitan (Hanya muncul jika lawan Komputer) -->
+            <div id="difficulty-section" class="hidden opacity-0 transition-opacity duration-300">
+                <h2 class="text-sm uppercase tracking-wider font-bold text-gray-400 mb-3">2. Tingkat Kesulitan</h2>
+                <div class="flex bg-gray-100 p-1 rounded-lg">
+                    <button id="diff-easy" class="flex-1 py-2 text-sm font-bold rounded-md transition text-gray-600 diff-selected" onclick="setDifficulty('easy')">Mudah</button>
+                    <button id="diff-medium" class="flex-1 py-2 text-sm font-bold rounded-md transition text-gray-600" onclick="setDifficulty('medium')">Sedang</button>
+                    <button id="diff-hard" class="flex-1 py-2 text-sm font-bold rounded-md transition text-gray-600" onclick="setDifficulty('hard')">Sulit</button>
+                </div>
+            </div>
+
+            <!-- Tombol Mulai -->
+            <button onclick="startGame()" class="w-full bg-blue-600 text-white py-4 rounded-xl font-extrabold text-xl hover:bg-blue-700 hover:shadow-lg transition-all active:scale-95 mt-4 flex items-center justify-center space-x-2">
+                <span>MULAI MAIN</span>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- GAME SCREEN -->
+    <div id="game-screen" class="hidden w-full max-w-md flex-col items-center justify-center">
+        
+        <!-- Header / Status Giliran -->
+        <div class="w-full bg-white rounded-2xl shadow-sm p-4 mb-4 flex justify-between items-center border-b-4 border-gray-200">
+            <div id="status-badge" class="flex items-center space-x-3 bg-red-50 border border-red-200 py-2 px-4 rounded-full transition-colors duration-300">
+                <div id="turn-coin" class="w-5 h-5 rounded-full bg-red-500 shadow-inner"></div>
+                <span id="status-text" class="font-bold text-red-700">Giliran Merah</span>
+            </div>
+            
+            <button onclick="pauseGame()" class="p-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-full transition active:scale-95">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </button>
+        </div>
+
+        <!-- Papan Permainan -->
+        <div class="board-container w-full cursor-pointer">
+            <div id="board" class="grid grid-cols-7 gap-2 sm:gap-3">
+                <!-- Sel-sel di-generate via JavaScript -->
+            </div>
+        </div>
+        
+        <p class="text-sm font-semibold text-gray-400 mt-6 text-center bg-white py-2 px-4 rounded-full shadow-sm">
+            👇 Ketuk kolom untuk menjatuhkan koin
+        </p>
+    </div>
+
+    <!-- PAUSE MODAL -->
+    <div id="pause-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 z-50 flex items-center justify-center backdrop-blur-sm p-4">
+        <div class="bg-white p-6 sm:p-8 rounded-2xl shadow-2xl w-full max-w-sm text-center transform transition-all">
+            <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </div>
+            <h2 class="text-2xl font-extrabold text-gray-800 mb-6">PERMAINAN DIJEDA</h2>
+            <div class="space-y-3">
+                <button onclick="resumeGame()" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition shadow-md">Lanjutkan</button>
+                <button onclick="restartGame()" class="w-full bg-yellow-500 text-white py-3 rounded-xl font-bold hover:bg-yellow-600 transition shadow-md">Ulangi Permainan</button>
+                <button onclick="goToMenu()" class="w-full bg-gray-100 text-gray-700 py-3 rounded-xl font-bold hover:bg-gray-200 transition border border-gray-200">Kembali ke Menu</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- RESULT MODAL -->
+    <div id="result-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 z-50 flex items-center justify-center backdrop-blur-sm p-4">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-sm text-center">
+            <h3 class="text-sm font-bold text-gray-400 uppercase tracking-widest mb-2">Permainan Selesai</h3>
+            <div id="winner-icon" class="w-24 h-24 mx-auto rounded-full mb-4 shadow-inner border-4 border-white ring-4 ring-gray-100"></div>
+            <h2 id="winner-text" class="text-3xl font-extrabold text-gray-800 mb-8">Merah Menang!</h2>
+            
+            <div class="grid grid-cols-2 gap-3">
+                <button onclick="goToMenu()" class="w-full bg-gray-100 text-gray-700 py-3 rounded-xl font-bold hover:bg-gray-200 transition">Menu Utama</button>
+                <button onclick="restartGame()" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition shadow-md">Main Lagi</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* ================= Konfigurasi & Variabel State ================= */
+        const ROWS = 6;
+        const COLS = 7;
+        const EMPTY = 0;
+        const PLAYER1 = 1; // Merah
+        const PLAYER2 = 2; // Kuning
+
+        let board = [];
+        let currentPlayer = PLAYER1;
+        let gameMode = 'pvp'; 
+        let difficulty = 'easy'; 
+        let isPaused = false;
+        let isGameOver = false;
+        let isCpuThinking = false;
+
+        /* ================= UI Menu Logic ================= */
+        function setMode(mode) {
+            gameMode = mode;
+            const cardPvP = document.getElementById('card-pvp');
+            const cardPvE = document.getElementById('card-pve');
+            const diffSection = document.getElementById('difficulty-section');
+
+            if (mode === 'pvp') {
+                cardPvP.classList.add('card-selected');
+                cardPvE.classList.remove('card-selected');
+                
+                diffSection.classList.add('hidden');
+                setTimeout(() => diffSection.classList.remove('opacity-100'), 10);
+            } else {
+                cardPvE.classList.add('card-selected');
+                cardPvP.classList.remove('card-selected');
+                
+                diffSection.classList.remove('hidden');
+                setTimeout(() => diffSection.classList.add('opacity-100'), 10);
+            }
+        }
+
+        function setDifficulty(diff) {
+            difficulty = diff;
+            const btns = ['easy', 'medium', 'hard'];
+            btns.forEach(d => {
+                const btn = document.getElementById(`diff-${d}`);
+                if (d === diff) {
+                    btn.classList.add('diff-selected');
+                    btn.classList.remove('text-gray-600');
+                } else {
+                    btn.classList.remove('diff-selected');
+                    btn.classList.add('text-gray-600');
+                }
+            });
+        }
+
+        /* ================= Logika Utama Game ================= */
+        function initBoard() {
+            board = Array.from({ length: ROWS }, () => Array(COLS).fill(EMPTY));
+        }
+
+        function createBoardUI() {
+            const boardEl = document.getElementById('board');
+            boardEl.innerHTML = '';
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('cell'); // Sel kosong (biru gelap)
+                    cell.dataset.row = r;
+                    cell.dataset.col = c;
+                    cell.addEventListener('click', () => handlePlayerMove(c));
+                    boardEl.appendChild(cell);
+                }
+            }
+        }
+
+        function startGame() {
+            document.getElementById('main-menu').classList.add('hidden');
+            const gs = document.getElementById('game-screen');
+            gs.classList.remove('hidden');
+            gs.classList.add('flex');
+            
+            initBoard();
+            createBoardUI();
+            currentPlayer = PLAYER1;
+            isGameOver = false;
+            isPaused = false;
+            isCpuThinking = false;
+            updateStatus();
+        }
+
+        function updateBoardUI(r, c, player) {
+            const sel = document.querySelector(`.cell[data-row='${r}'][data-col='${c}']`);
+            // Tambahkan class player dan animasi drop
+            sel.classList.add(player === PLAYER1 ? 'player1' : 'player2', 'drop-anim');
+            
+            // Hapus class drop-anim setelah animasi selesai agar tidak berulang jika di-resize
+            setTimeout(() => {
+                sel.classList.remove('drop-anim');
+            }, 500);
+        }
+
+        function getValidRow(currentBoard, c) {
+            for (let r = ROWS - 1; r >= 0; r--) {
+                if (currentBoard[r][c] === EMPTY) {
+                    return r;
+                }
+            }
+            return -1;
+        }
+
+        async function handlePlayerMove(col) {
+            if (isGameOver || isPaused || isCpuThinking) return;
+
+            const row = getValidRow(board, col);
+            if (row === -1) return; // Kolom penuh
+
+            // Eksekusi jalan
+            board[row][col] = currentPlayer;
+            updateBoardUI(row, col, currentPlayer);
+
+            if (checkWin(board, currentPlayer)) {
+                setTimeout(() => handleGameOver(currentPlayer), 500); // Tunggu animasi jatuh selesai
+                return;
+            }
+
+            if (checkDraw(board)) {
+                setTimeout(() => handleGameOver(EMPTY), 500);
+                return;
+            }
+
+            // Ganti giliran
+            currentPlayer = currentPlayer === PLAYER1 ? PLAYER2 : PLAYER1;
+            updateStatus();
+
+            // Jika mode PvE dan giliran CPU
+            if (gameMode === 'pve' && currentPlayer === PLAYER2) {
+                isCpuThinking = true;
+                updateStatusText("Komputer berpikir...");
+                
+                // Jeda agar terlihat sedang "berpikir"
+                setTimeout(() => {
+                    makeCpuMove();
+                }, 600);
+            }
+        }
+
+        function makeCpuMove() {
+            if (isGameOver || isPaused) return;
+
+            let col = -1;
+            
+            if (difficulty === 'easy') {
+                const validCols = [];
+                for(let c=0; c<COLS; c++) {
+                    if (getValidRow(board, c) !== -1) validCols.push(c);
+                }
+                col = validCols[Math.floor(Math.random() * validCols.length)];
+            } 
+            else if (difficulty === 'medium') {
+                col = minimax(board, 3, -Infinity, Infinity, true)[0];
+            } 
+            else if (difficulty === 'hard') {
+                col = minimax(board, 6, -Infinity, Infinity, true)[0];
+            }
+
+            // Fallback
+            if (col === -1 || getValidRow(board, col) === -1) {
+                for(let c=0; c<COLS; c++) {
+                    if(getValidRow(board, c) !== -1){ col = c; break; }
+                }
+            }
+
+            const row = getValidRow(board, col);
+            board[row][col] = PLAYER2;
+            updateBoardUI(row, col, PLAYER2);
+
+            if (checkWin(board, PLAYER2)) {
+                setTimeout(() => handleGameOver(PLAYER2), 500);
+                return;
+            }
+
+            if (checkDraw(board)) {
+                setTimeout(() => handleGameOver(EMPTY), 500);
+                return;
+            }
+
+            currentPlayer = PLAYER1;
+            isCpuThinking = false;
+            updateStatus();
+        }
+
+        function updateStatus() {
+            const badge = document.getElementById('status-badge');
+            const coin = document.getElementById('turn-coin');
+            const text = document.getElementById('status-text');
+
+            if (currentPlayer === PLAYER1) {
+                badge.className = 'flex items-center space-x-3 bg-red-50 border border-red-200 py-2 px-4 rounded-full transition-colors duration-300';
+                coin.className = 'w-5 h-5 rounded-full bg-red-500 shadow-inner';
+                text.className = 'font-bold text-red-700';
+                text.innerText = 'Giliran Merah (Kamu)';
+            } else {
+                badge.className = 'flex items-center space-x-3 bg-yellow-50 border border-yellow-300 py-2 px-4 rounded-full transition-colors duration-300';
+                coin.className = 'w-5 h-5 rounded-full bg-yellow-400 shadow-inner';
+                text.className = 'font-bold text-yellow-700';
+                text.innerText = gameMode === 'pve' ? 'Giliran Komputer...' : 'Giliran Kuning';
+            }
+        }
+
+        function updateStatusText(msg) {
+            document.getElementById('status-text').innerText = msg;
+        }
+
+        /* ================= Sistem Pause & Navigasi ================= */
+        function pauseGame() {
+            if (isGameOver) return;
+            isPaused = true;
+            document.getElementById('pause-modal').classList.remove('hidden');
+        }
+
+        function resumeGame() {
+            isPaused = false;
+            document.getElementById('pause-modal').classList.add('hidden');
+        }
+
+        function restartGame() {
+            document.getElementById('pause-modal').classList.add('hidden');
+            document.getElementById('result-modal').classList.add('hidden');
+            startGame();
+        }
+
+        function goToMenu() {
+            document.getElementById('pause-modal').classList.add('hidden');
+            document.getElementById('result-modal').classList.add('hidden');
+            
+            const gs = document.getElementById('game-screen');
+            gs.classList.add('hidden');
+            gs.classList.remove('flex');
+            
+            document.getElementById('main-menu').classList.remove('hidden');
+        }
+
+        function handleGameOver(winner) {
+            isGameOver = true;
+            document.getElementById('result-modal').classList.remove('hidden');
+            
+            const winnerText = document.getElementById('winner-text');
+            const winnerIcon = document.getElementById('winner-icon');
+            
+            // Reset class
+            winnerIcon.className = 'w-24 h-24 mx-auto rounded-full mb-4 shadow-inner border-4 border-white ring-4 ring-gray-100'; 
+            
+            if (winner === PLAYER1) {
+                winnerText.innerText = "Merah Menang!";
+                winnerText.className = "text-3xl font-extrabold text-red-600 mb-8";
+                winnerIcon.classList.add('bg-red-500');
+            } else if (winner === PLAYER2) {
+                winnerText.innerText = gameMode === 'pve' ? "Komputer Menang!" : "Kuning Menang!";
+                winnerText.className = "text-3xl font-extrabold text-yellow-500 mb-8";
+                winnerIcon.classList.add('bg-yellow-400');
+            } else {
+                winnerText.innerText = "Permainan Seri!";
+                winnerText.className = "text-3xl font-extrabold text-gray-700 mb-8";
+                winnerIcon.classList.add('bg-gray-400');
+            }
+        }
+
+        /* ================= Pengecekan Kemenangan ================= */
+        function checkWin(currentBoard, piece) {
+            // Cek Horizontal
+            for (let c = 0; c < COLS - 3; c++) {
+                for (let r = 0; r < ROWS; r++) {
+                    if (currentBoard[r][c] == piece && currentBoard[r][c+1] == piece && 
+                        currentBoard[r][c+2] == piece && currentBoard[r][c+3] == piece) return true;
+                }
+            }
+            // Cek Vertikal
+            for (let c = 0; c < COLS; c++) {
+                for (let r = 0; r < ROWS - 3; r++) {
+                    if (currentBoard[r][c] == piece && currentBoard[r+1][c] == piece && 
+                        currentBoard[r+2][c] == piece && currentBoard[r+3][c] == piece) return true;
+                }
+            }
+            // Diagonal Positif
+            for (let c = 0; c < COLS - 3; c++) {
+                for (let r = 0; r < ROWS - 3; r++) {
+                    if (currentBoard[r][c] == piece && currentBoard[r+1][c+1] == piece && 
+                        currentBoard[r+2][c+2] == piece && currentBoard[r+3][c+3] == piece) return true;
+                }
+            }
+            // Diagonal Negatif
+            for (let c = 0; c < COLS - 3; c++) {
+                for (let r = 3; r < ROWS; r++) {
+                    if (currentBoard[r][c] == piece && currentBoard[r-1][c+1] == piece && 
+                        currentBoard[r-2][c+2] == piece && currentBoard[r-3][c+3] == piece) return true;
+                }
+            }
+            return false;
+        }
+
+        function checkDraw(currentBoard) {
+            for (let c = 0; c < COLS; c++) {
+                if (currentBoard[0][c] === EMPTY) return false;
+            }
+            return true;
+        }
+
+        /* ================= AI (Minimax & Heuristic) ================= */
+        function copyBoard(currentBoard) { return currentBoard.map(row => [...row]); }
+        function getValidLocations(currentBoard) {
+            let valid = [];
+            for (let c = 0; c < COLS; c++) { if (currentBoard[0][c] === EMPTY) valid.push(c); }
+            return valid;
+        }
+
+        function evaluateWindow(window, piece) {
+            let score = 0;
+            let oppPiece = (piece === PLAYER1) ? PLAYER2 : PLAYER1;
+            let countPiece = 0, countEmpty = 0, countOpp = 0;
+
+            for(let i=0; i<4; i++){
+                if(window[i] === piece) countPiece++;
+                else if(window[i] === EMPTY) countEmpty++;
+                else if(window[i] === oppPiece) countOpp++;
+            }
+
+            if (countPiece === 4) score += 100;
+            else if (countPiece === 3 && countEmpty === 1) score += 5;
+            else if (countPiece === 2 && countEmpty === 2) score += 2;
+            if (countOpp === 3 && countEmpty === 1) score -= 80;
+
+            return score;
+        }
+
+        function scorePosition(currentBoard, piece) {
+            let score = 0;
+            let centerArray = [];
+            for (let r = 0; r < ROWS; r++) centerArray.push(currentBoard[r][Math.floor(COLS/2)]);
+            score += centerArray.filter(p => p === piece).length * 3;
+
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS - 3; c++) score += evaluateWindow(currentBoard[r].slice(c, c + 4), piece);
+            }
+            for (let c = 0; c < COLS; c++) {
+                let colArray = [];
+                for (let r = 0; r < ROWS; r++) colArray.push(currentBoard[r][c]);
+                for (let r = 0; r < ROWS - 3; r++) score += evaluateWindow(colArray.slice(r, r + 4), piece);
+            }
+            for (let r = 0; r < ROWS - 3; r++) {
+                for (let c = 0; c < COLS - 3; c++) score += evaluateWindow([currentBoard[r][c], currentBoard[r+1][c+1], currentBoard[r+2][c+2], currentBoard[r+3][c+3]], piece);
+            }
+            for (let r = 3; r < ROWS; r++) {
+                for (let c = 0; c < COLS - 3; c++) score += evaluateWindow([currentBoard[r][c], currentBoard[r-1][c+1], currentBoard[r-2][c+2], currentBoard[r-3][c+3]], piece);
+            }
+            return score;
+        }
+
+        function isTerminalNode(currentBoard) {
+            return checkWin(currentBoard, PLAYER1) || checkWin(currentBoard, PLAYER2) || getValidLocations(currentBoard).length === 0;
+        }
+
+        function minimax(currentBoard, depth, alpha, beta, maximizingPlayer) {
+            let validLocations = getValidLocations(currentBoard);
+            let isTerminal = isTerminalNode(currentBoard);
+            
+            if (depth === 0 || isTerminal) {
+                if (isTerminal) {
+                    if (checkWin(currentBoard, PLAYER2)) return [null, 1000000000];
+                    else if (checkWin(currentBoard, PLAYER1)) return [null, -1000000000];
+                    else return [null, 0];
+                } else {
+                    return [null, scorePosition(currentBoard, PLAYER2)];
+                }
+            }
+
+            if (maximizingPlayer) {
+                let value = -Infinity;
+                let bestCol = validLocations[Math.floor(Math.random() * validLocations.length)];
+                for (let i = 0; i < validLocations.length; i++) {
+                    let col = validLocations[i];
+                    let row = getValidRow(currentBoard, col);
+                    let bCopy = copyBoard(currentBoard);
+                    bCopy[row][col] = PLAYER2;
+                    let newScore = minimax(bCopy, depth - 1, alpha, beta, false)[1];
+                    if (newScore > value) { value = newScore; bestCol = col; }
+                    alpha = Math.max(alpha, value);
+                    if (alpha >= beta) break;
+                }
+                return [bestCol, value];
+            } else {
+                let value = Infinity;
+                let bestCol = validLocations[Math.floor(Math.random() * validLocations.length)];
+                for (let i = 0; i < validLocations.length; i++) {
+                    let col = validLocations[i];
+                    let row = getValidRow(currentBoard, col);
+                    let bCopy = copyBoard(currentBoard);
+                    bCopy[row][col] = PLAYER1;
+                    let newScore = minimax(bCopy, depth - 1, alpha, beta, true)[1];
+                    if (newScore < value) { value = newScore; bestCol = col; }
+                    beta = Math.min(beta, value);
+                    if (alpha >= beta) break;
+                }
+                return [bestCol, value];
+            }
+        }
+    </script>
+</body>
+</html>

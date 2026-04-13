@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Lunar Lander Klasik</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Mencegah default touch actions seperti pull-to-refresh atau pinch-zoom di mobile */
+        body {
+            touch-action: none;
+            overflow: hidden;
+            background-color: #050505; /* Hitam pekat, bukan biru neon */
+            color: #eeeeee;
+            font-family: 'Courier New', Courier, monospace; /* Font gaya retro/terminal */
+        }
+        
+        #gameCanvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+            background-color: #050505;
+        }
+
+        /* UI Overlays */
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: rgba(5, 5, 5, 0.85); /* Solid flat overlay, no blur/glow */
+            z-index: 10;
+        }
+
+        .hidden { display: none !important; }
+
+        .btn {
+            background-color: transparent;
+            border: 2px solid #eeeeee;
+            color: #eeeeee;
+            padding: 10px 24px;
+            margin: 8px;
+            font-size: 1.2rem;
+            font-family: inherit;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.1s;
+            text-transform: uppercase;
+        }
+
+        .btn:hover, .btn:active {
+            background-color: #eeeeee;
+            color: #050505;
+        }
+
+        .btn.active-diff {
+            background-color: #aaaaaa;
+            color: #000;
+            border-color: #aaaaaa;
+        }
+
+        /* Mobile Controls */
+        #mobileControls {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            width: 100%;
+            height: 120px;
+            display: none; /* Akan dimunculkan via JS jika device touch */
+            pointer-events: none;
+            z-index: 5;
+            padding: 0 20px;
+            box-sizing: border-box;
+        }
+
+        .touch-btn {
+            pointer-events: auto;
+            width: 80px;
+            height: 80px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2rem;
+            color: rgba(255,255,255,0.5);
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .touch-btn:active {
+            background-color: rgba(255,255,255,0.2);
+            border-color: rgba(255,255,255,0.8);
+            color: rgba(255,255,255,0.9);
+        }
+
+        #hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            pointer-events: none;
+            font-size: 14px;
+            line-height: 1.5;
+            z-index: 5;
+        }
+        .hud-value { font-weight: bold; }
+        .hud-danger { color: #ff5555; }
+        .hud-safe { color: #55ff55; }
+
+        /* Pause Button (Top Right) */
+        #pauseBtn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 6;
+            padding: 8px 16px;
+            font-size: 1rem;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- HUD (Heads Up Display) -->
+    <div id="hud" class="hidden">
+        <div>SKOR   : <span id="hudScore" class="hud-value">0</span></div>
+        <div>BAHAN BAKAR: <span id="hudFuel" class="hud-value">100</span></div>
+        <div>KETINGGIAN : <span id="hudAlt" class="hud-value">0</span> m</div>
+        <div>KEC. VERTIKAL: <span id="hudVSpd" class="hud-value">0</span> m/s</div>
+        <div>KEC. HORIZ.  : <span id="hudHSpd" class="hud-value">0</span> m/s</div>
+    </div>
+
+    <button id="pauseBtn" class="btn hidden">JEDA</button>
+
+    <!-- Main Menu Overlay -->
+    <div id="mainMenu" class="overlay">
+        <h1 class="text-4xl md:text-6xl font-bold mb-2 tracking-widest">LUNAR LANDER</h1>
+        <p class="mb-8 text-gray-400">Mendaratlah di landasan (garis tebal) dengan hati-hati.</p>
+        
+        <div class="mb-6 flex flex-wrap justify-center gap-2">
+            <button class="btn diff-btn" data-diff="easy">Mudah</button>
+            <button class="btn diff-btn active-diff" data-diff="normal">Sedang</button>
+            <button class="btn diff-btn" data-diff="hard">Sulit</button>
+        </div>
+
+        <button id="startBtn" class="btn text-2xl px-12 py-4">MULAI MISI</button>
+
+        <div class="mt-8 text-sm text-gray-500 text-center max-w-md">
+            <p>Kontrol Desktop: Tombol Panah (Kiri/Kanan: Rotasi, Atas: Roket Utama)</p>
+            <p>Kontrol Layar Sentuh tersedia di perangkat mobile.</p>
+        </div>
+    </div>
+
+    <!-- Pause Menu Overlay -->
+    <div id="pauseMenu" class="overlay hidden">
+        <h2 class="text-4xl font-bold mb-8">DIJEDA</h2>
+        <button id="resumeBtn" class="btn text-xl mb-4">LANJUTKAN</button>
+        <button id="restartPauseBtn" class="btn text-xl mb-4">ULANGI MISI</button>
+        <button id="quitBtn" class="btn text-xl">KEMBALI KE MENU</button>
+    </div>
+
+    <!-- Game Over / Success Overlay -->
+    <div id="endMenu" class="overlay hidden">
+        <h2 id="endTitle" class="text-5xl font-bold mb-4"></h2>
+        <p id="endMessage" class="text-xl mb-8"></p>
+        <p class="text-2xl mb-8">Skor Total: <span id="endScore" class="font-bold"></span></p>
+        <button id="nextLevelBtn" class="btn text-xl mb-4 hidden">LANJUT AREA BERIKUTNYA</button>
+        <button id="restartEndBtn" class="btn text-xl">ULANGI MISI</button>
+    </div>
+
+    <!-- Mobile Touch Controls -->
+    <div id="mobileControls" class="flex justify-between items-end">
+        <div class="flex gap-4">
+            <div id="btnLeft" class="touch-btn">&#8634;</div>
+            <div id="btnRight" class="touch-btn">&#8635;</div>
+        </div>
+        <div>
+            <div id="btnThrust" class="touch-btn">&#8673;</div>
+        </div>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        /** * LUNAR LANDER ENGINE 
+         * Menggunakan gaya flat/vektor, tidak ada efek blur/glow.
+         */
+
+        // --- SISTEM DAN VARIABEL GLOBAL ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // State Game
+        const STATE = { MENU: 0, PLAYING: 1, PAUSED: 2, GAMEOVER: 3, SUCCESS: 4, COUNTDOWN: 5 };
+        let currentState = STATE.MENU;
+        let animationFrameId;
+        let countdownTimer;
+        let countdownValue = 3;
+        
+        // Input
+        const keys = { ArrowUp: false, ArrowLeft: false, ArrowRight: false };
+        const touch = { thrust: false, left: false, right: false };
+
+        // Statistik
+        let score = 0;
+        let level = 1;
+
+        // --- KONFIGURASI TINGKAT KESULITAN ---
+        const difficulties = {
+            easy: { gravity: 0.015, fuel: 800, thrustPower: 0.05, maxVSpd: 2.5, maxHSpd: 2.0, maxAngle: 0.25, padWidth: 80 },
+            normal: { gravity: 0.025, fuel: 500, thrustPower: 0.06, maxVSpd: 1.5, maxHSpd: 1.0, maxAngle: 0.15, padWidth: 50 },
+            hard: { gravity: 0.035, fuel: 300, thrustPower: 0.07, maxVSpd: 1.0, maxHSpd: 0.5, maxAngle: 0.08, padWidth: 30 }
+        };
+        let currentDiff = 'normal';
+        let config = difficulties[currentDiff];
+
+        // --- ENTITAS GAME ---
+        let lander = null;
+        let terrain = [];
+        let particles = [];
+        let stars = [];
+
+        class Particle {
+            constructor(x, y, vx, vy, life) {
+                this.x = x;
+                this.y = y;
+                this.vx = vx;
+                this.vy = vy;
+                this.life = life;
+                this.maxLife = life;
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.life -= 1;
+            }
+            draw(ctx) {
+                if (this.life <= 0) return;
+                const alpha = this.life / this.maxLife;
+                ctx.fillStyle = `rgba(200, 200, 200, ${alpha})`; // Abu-abu solid, no glow
+                ctx.fillRect(this.x, this.y, 2, 2);
+            }
+        }
+
+        class Lander {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.vx = 0;
+                this.vy = 0;
+                this.angle = 0; // Radian, 0 = menghadap ke atas
+                this.width = 16;
+                this.height = 20;
+                this.fuel = config.fuel;
+                this.isThrusting = false;
+                this.crashed = false;
+                this.landed = false;
+            }
+
+            update() {
+                if (this.crashed || this.landed) return;
+
+                // Fisika Rotasi
+                const rotSpeed = 0.05;
+                if (keys.ArrowLeft || touch.left) this.angle -= rotSpeed;
+                if (keys.ArrowRight || touch.right) this.angle += rotSpeed;
+
+                // Batasi sudut agar tidak berputar lebih dari 180 derajat murni untuk tampilan angka
+                if (this.angle > Math.PI) this.angle -= Math.PI * 2;
+                if (this.angle < -Math.PI) this.angle += Math.PI * 2;
+
+                // Fisika Dorongan (Thrust)
+                this.isThrusting = (keys.ArrowUp || touch.thrust) && this.fuel > 0;
+                
+                if (this.isThrusting) {
+                    this.vx += Math.sin(this.angle) * config.thrustPower;
+                    this.vy -= Math.cos(this.angle) * config.thrustPower;
+                    this.fuel -= 1;
+
+                    // Buat partikel api
+                    if (Math.random() > 0.3) {
+                        const nozzleX = this.x - Math.sin(this.angle) * (this.height/2);
+                        const nozzleY = this.y + Math.cos(this.angle) * (this.height/2);
+                        const pvx = -Math.sin(this.angle) * 2 + (Math.random() - 0.5);
+                        const pvy = Math.cos(this.angle) * 2 + (Math.random() - 0.5);
+                        particles.push(new Particle(nozzleX, nozzleY, pvx, pvy, 20 + Math.random()*10));
+                    }
+                }
+
+                // Gravitasi
+                this.vy += config.gravity;
+
+                // Update Posisi
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // Batas layar (wrap around untuk X)
+                if (this.x < 0) this.x = canvas.width;
+                if (this.x > canvas.width) this.x = 0;
+                if (this.y < -50) this.vy = 0; // Jangan biarkan terbang terlalu tinggi tanpa batas
+
+                this.checkCollision();
+            }
+
+            draw(ctx) {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle);
+
+                // Menggambar Kapal (Garis solid, vektor, tanpa fill mencolok)
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                
+                // Badan utama (Kapsul/segitiga terpotong)
+                ctx.moveTo(-8, 6);
+                ctx.lineTo(-6, -6);
+                ctx.lineTo(0, -10);
+                ctx.lineTo(6, -6);
+                ctx.lineTo(8, 6);
+                ctx.closePath();
+                ctx.stroke();
+
+                // Kaki Pendarat
+                ctx.beginPath();
+                ctx.moveTo(-8, 6);
+                ctx.lineTo(-12, 12);
+                ctx.moveTo(-14, 12);
+                ctx.lineTo(-10, 12); // Tapak kaki kiri
+                
+                ctx.moveTo(8, 6);
+                ctx.lineTo(12, 12);
+                ctx.moveTo(10, 12);
+                ctx.lineTo(14, 12); // Tapak kaki kanan
+                ctx.stroke();
+
+                // Garis bawah badan (Nozzle referensi)
+                ctx.beginPath();
+                ctx.moveTo(-4, 6);
+                ctx.lineTo(4, 6);
+                ctx.lineTo(0, 9);
+                ctx.closePath();
+                ctx.stroke();
+
+                // Jika thrusting, gambar api (vektor sederhana, tidak glow)
+                if (this.isThrusting && !this.crashed && !this.landed) {
+                    ctx.strokeStyle = '#ff5555'; // Merah solid
+                    ctx.beginPath();
+                    ctx.moveTo(-3, 9);
+                    ctx.lineTo(0, 15 + Math.random() * 8); // Berkedip secara geometris
+                    ctx.lineTo(3, 9);
+                    ctx.stroke();
+                }
+
+                ctx.restore();
+            }
+
+            checkCollision() {
+                // Cari segmen terrain di bawah kapal (berdasarkan X kapal)
+                for (let i = 0; i < terrain.length - 1; i++) {
+                    const p1 = terrain[i];
+                    const p2 = terrain[i+1];
+
+                    // Apakah titik X kapal berada di antara titik p1 dan p2?
+                    // (Mengatasi wrap around: kapal dipecah jadi titik tengah saja untuk kesederhanaan logika retro)
+                    if (this.x >= p1.x && this.x <= p2.x) {
+                        // Interpolasi linier untuk mencari ketinggian tanah tepat di bawah kapal Y(x)
+                        const t = (this.x - p1.x) / (p2.x - p1.x);
+                        const groundY = p1.y + t * (p2.y - p1.y);
+
+                        // Titik terendah kapal (kaki)
+                        const bottomY = this.y + 12;
+
+                        if (bottomY >= groundY) {
+                            this.y = groundY - 12; // Snap ke tanah
+                            this.evaluateLanding(p1, p2);
+                            break;
+                        }
+                    }
+                }
+            }
+
+            evaluateLanding(p1, p2) {
+                // Kriteria Pendaratan Sukses:
+                // 1. Mendarat di area Pad (isPad = true)
+                // 2. Kecepatan Vertikal aman
+                // 3. Kecepatan Horizontal aman
+                // 4. Kapal tegak lurus (Angle kecil)
+                
+                const isPad = p1.isPad && p2.isPad && (p1.y === p2.y);
+                const safeVSpd = Math.abs(this.vy) <= config.maxVSpd;
+                const safeHSpd = Math.abs(this.vx) <= config.maxHSpd;
+                const safeAngle = Math.abs(this.angle) <= config.maxAngle;
+
+                // Mengecek apakah 100% badan kapal (lebar kaki) berada di dalam batas pad
+                // Kaki terentang dari x-12 hingga x+12
+                const insidePadBounds = (this.x - 12 >= p1.x) && (this.x + 12 <= p2.x);
+
+                if (isPad && safeVSpd && safeHSpd && safeAngle && insidePadBounds) {
+                    this.landed = true;
+                    this.vx = 0;
+                    this.vy = 0;
+                    this.angle = 0;
+                    triggerSuccess(p1.multiplier);
+                } else {
+                    this.crashed = true;
+                    createExplosion(this.x, this.y);
+                    triggerGameOver("KAPAL HANCUR", getFailReason(isPad, safeVSpd, safeHSpd, safeAngle, insidePadBounds));
+                }
+            }
+        }
+
+        function getFailReason(isPad, v, h, a, bounds) {
+            if (!isPad) return "Mendarat di permukaan berbatu / luar landasan.";
+            if (!bounds) return "Kaki pendarat keluar dari landasan.";
+            if (!v) return "Kecepatan vertikal terlalu tinggi (Terbanting).";
+            if (!h) return "Kecepatan horizontal terlalu tinggi (Tergelincir).";
+            if (!a) return "Kemiringan kapal terlalu tajam.";
+            return "Tabrakan Fatal.";
+        }
+
+        function createExplosion(x, y) {
+            for(let i=0; i<30; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 3;
+                particles.push(new Particle(
+                    x, y, 
+                    Math.cos(angle)*speed, 
+                    Math.sin(angle)*speed, 
+                    30 + Math.random()*20
+                ));
+            }
+        }
+
+        // --- GENERATOR LINGKUNGAN ---
+        function generateTerrain() {
+            terrain = [];
+            const width = canvas.width;
+            const height = canvas.height;
+            
+            // Konfigurasi dasar
+            let x = 0;
+            let y = height - (Math.random() * 100 + 50);
+            
+            // Jumlah pad bergantung kesulitan
+            const padCount = currentDiff === 'hard' ? 2 : (currentDiff === 'normal' ? 3 : 4);
+            const padLocations = [];
+            
+            // Tentukan x lokasi pad secara acak tapi menyebar
+            const segment = width / padCount;
+            for(let i=0; i<padCount; i++) {
+                padLocations.push(segment * i + segment*0.2 + Math.random()*(segment*0.6));
+            }
+
+            terrain.push({x: 0, y: y, isPad: false});
+
+            let currentPad = 0;
+            while (x < width) {
+                // Cek apakah dekat dengan lokasi pad yang direncanakan
+                if (currentPad < padLocations.length && x > padLocations[currentPad] - config.padWidth) {
+                    // Buat Pad datar
+                    const padX1 = x;
+                    const padX2 = padX1 + config.padWidth;
+                    // Pad height
+                    y = height - (Math.random() * 100 + 50); 
+                    
+                    terrain.push({x: padX1, y: y, isPad: true, multiplier: 1}); // Multiplier bisa disesuaikan nanti
+                    terrain.push({x: padX2, y: y, isPad: true, multiplier: 1});
+                    
+                    x = padX2;
+                    currentPad++;
+                } else {
+                    // Gunung acak
+                    x += Math.random() * 40 + 10;
+                    if (x > width) x = width;
+                    
+                    // Batasan ekstremitas gunung
+                    y += (Math.random() - 0.5) * 100;
+                    if (y > height - 20) y = height - 20;
+                    if (y < height / 2) y = height / 2;
+
+                    terrain.push({x: x, y: y, isPad: false});
+                }
+            }
+
+            // Pastikan titik terakhir tertutup di layar
+            terrain[terrain.length-1].x = width;
+        }
+
+        function generateStars() {
+            stars = [];
+            for(let i=0; i<100; i++) {
+                stars.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    size: Math.random() > 0.8 ? 1.5 : 1, // Sedikit variasi ukuran, no blur
+                    blinkSpeed: Math.random() * 0.05
+                });
+            }
+        }
+
+        function drawEnvironment(ctx) {
+            // Gambar Bintang (Statis, retro)
+            ctx.fillStyle = '#ffffff';
+            stars.forEach(s => {
+                // Efek kedip sederhana tanpa alpha blending berat
+                if (Math.sin(Date.now() * s.blinkSpeed) > -0.5) {
+                    ctx.fillRect(s.x, s.y, s.size, s.size);
+                }
+            });
+
+            // Gambar Terrain (Vektor garis)
+            ctx.strokeStyle = '#aaaaaa';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(terrain[0].x, terrain[0].y);
+            
+            for(let i=1; i<terrain.length; i++) {
+                ctx.lineTo(terrain[i].x, terrain[i].y);
+            }
+            ctx.stroke();
+
+            // Gambar area bawah terrain dengan arsir atau fill tipis
+            ctx.lineTo(canvas.width, canvas.height);
+            ctx.lineTo(0, canvas.height);
+            ctx.closePath();
+            ctx.fillStyle = '#111111'; // Sangat gelap
+            ctx.fill();
+
+            // Highlight Pad Pendaratan (Garis tebal)
+            ctx.lineWidth = 4;
+            for(let i=0; i<terrain.length - 1; i++) {
+                if (terrain[i].isPad && terrain[i+1].isPad) {
+                    // Pad warna putih tebal (atau cyan retro sedikit)
+                    ctx.strokeStyle = '#ffffff'; 
+                    ctx.beginPath();
+                    ctx.moveTo(terrain[i].x, terrain[i].y);
+                    ctx.lineTo(terrain[i+1].x, terrain[i+1].y);
+                    ctx.stroke();
+                    
+                    // Tulisan 2x / 3x multiplier opsional
+                    ctx.fillStyle = '#aaaaaa';
+                    ctx.font = '10px Courier New';
+                    ctx.fillText('PAD', terrain[i].x + config.padWidth/2 - 10, terrain[i].y + 15);
+                }
+            }
+        }
+
+
+        // --- SISTEM GAME LOOP ---
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            if (currentState === STATE.PLAYING || currentState === STATE.PAUSED) {
+                // Jika resize saat main, regrading tidak disarankan. 
+                // Untuk kesederhanaan retro, gambar ulang statis saja.
+                draw();
+            } else {
+                generateStars();
+                generateTerrain();
+                draw();
+            }
+        }
+
+        function initGame(resetScore = false) {
+            if(resetScore) {
+                score = 0;
+                level = 1;
+            }
+            config = difficulties[currentDiff];
+            resizeCanvas(); // Memaksa regenerasi terrain dengan dimensi layar
+            generateStars();
+            
+            lander = new Lander(canvas.width / 2, 50);
+            particles = [];
+            
+            updateHUD();
+            
+            currentState = STATE.COUNTDOWN;
+            countdownValue = 3;
+            
+            document.getElementById('mainMenu').classList.add('hidden');
+            document.getElementById('pauseMenu').classList.add('hidden');
+            document.getElementById('endMenu').classList.add('hidden');
+            document.getElementById('hud').classList.remove('hidden');
+            document.getElementById('pauseBtn').classList.add('hidden'); // Sembunyikan tombol jeda saat hitung mundur
+            
+            // Cek jika butuh tombol mobile
+            if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+                document.getElementById('mobileControls').style.display = 'flex';
+            }
+
+            if(animationFrameId) cancelAnimationFrame(animationFrameId);
+            if(countdownTimer) clearInterval(countdownTimer);
+            
+            gameLoop();
+            
+            countdownTimer = setInterval(() => {
+                countdownValue--;
+                if (countdownValue < 0) {
+                    clearInterval(countdownTimer);
+                    currentState = STATE.PLAYING;
+                    document.getElementById('pauseBtn').classList.remove('hidden');
+                }
+            }, 1000);
+        }
+
+        function update() {
+            if (currentState === STATE.PLAYING) {
+                lander.update();
+                
+                particles.forEach(p => p.update());
+                particles = particles.filter(p => p.life > 0);
+            }
+
+            if (currentState === STATE.PLAYING || currentState === STATE.COUNTDOWN) {
+                updateHUD();
+            }
+        }
+
+        function draw() {
+            // Bersihkan kanvas
+            ctx.fillStyle = '#050505';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            drawEnvironment(ctx);
+            particles.forEach(p => p.draw(ctx));
+            
+            if (lander) {
+                lander.draw(ctx);
+            }
+
+            // Gambar Hitung Mundur
+            if (currentState === STATE.COUNTDOWN) {
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 64px Courier New';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                let text = countdownValue > 0 ? countdownValue : "MULAI!";
+                ctx.fillText(text, canvas.width / 2, canvas.height / 3);
+                
+                // Kembalikan ke default
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'alphabetic';
+            }
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            if (currentState === STATE.PLAYING || currentState === STATE.COUNTDOWN) {
+                animationFrameId = requestAnimationFrame(gameLoop);
+            }
+        }
+
+        // --- SISTEM UI & STATE ---
+        function formatNumber(num) {
+            return (Math.round(num * 10) / 10).toFixed(1);
+        }
+
+        function updateHUD() {
+            if(!lander) return;
+            document.getElementById('hudScore').innerText = score;
+            document.getElementById('hudFuel').innerText = Math.max(0, Math.floor(lander.fuel));
+            
+            // Ketinggian kasar (jarak ke titik terbawah layar)
+            const alt = canvas.height - lander.y - 12;
+            document.getElementById('hudAlt').innerText = Math.max(0, Math.floor(alt));
+
+            const vSpd = lander.vy * 10; // Skala agar angkanya enak dibaca
+            const hSpd = lander.vx * 10;
+            
+            const elVspd = document.getElementById('hudVSpd');
+            const elHspd = document.getElementById('hudHSpd');
+            
+            elVspd.innerText = formatNumber(vSpd);
+            elHspd.innerText = formatNumber(hSpd);
+
+            // Warna peringatan kecepatan
+            elVspd.className = 'hud-value ' + (Math.abs(lander.vy) > config.maxVSpd ? 'hud-danger' : 'hud-safe');
+            elHspd.className = 'hud-value ' + (Math.abs(lander.vx) > config.maxHSpd ? 'hud-danger' : 'hud-safe');
+        }
+
+        function triggerSuccess(multiplier) {
+            currentState = STATE.SUCCESS;
+            
+            // Kalkulasi skor
+            const fuelBonus = Math.floor(lander.fuel * 0.5);
+            const landingScore = 500 * multiplier;
+            const diffMultiplier = currentDiff === 'hard' ? 2 : (currentDiff === 'easy' ? 0.5 : 1);
+            const levelScore = Math.floor((landingScore + fuelBonus) * diffMultiplier);
+            
+            score += levelScore;
+            level++;
+
+            setTimeout(() => {
+                document.getElementById('endTitle').innerText = "PENDARATAN SUKSES";
+                document.getElementById('endTitle').style.color = "#55ff55";
+                document.getElementById('endMessage').innerText = `Pendaratan sempurna! Bonus Bahan Bakar: ${fuelBonus}`;
+                document.getElementById('endScore').innerText = score;
+                
+                document.getElementById('nextLevelBtn').classList.remove('hidden');
+                document.getElementById('restartEndBtn').innerText = "KEMBALI KE MENU";
+                
+                document.getElementById('endMenu').classList.remove('hidden');
+                document.getElementById('pauseBtn').classList.add('hidden');
+            }, 1000);
+        }
+
+        function triggerGameOver(title, message) {
+            currentState = STATE.GAMEOVER;
+            
+            setTimeout(() => {
+                document.getElementById('endTitle').innerText = title;
+                document.getElementById('endTitle').style.color = "#ff5555";
+                document.getElementById('endMessage').innerText = message;
+                document.getElementById('endScore').innerText = score;
+                
+                document.getElementById('nextLevelBtn').classList.add('hidden');
+                document.getElementById('restartEndBtn').innerText = "ULANGI MISI";
+                
+                document.getElementById('endMenu').classList.remove('hidden');
+                document.getElementById('pauseBtn').classList.add('hidden');
+            }, 1500); // Jeda sebentar untuk melihat ledakan
+        }
+
+        function togglePause() {
+            if (currentState === STATE.PLAYING) {
+                currentState = STATE.PAUSED;
+                document.getElementById('pauseMenu').classList.remove('hidden');
+                document.getElementById('pauseBtn').classList.add('hidden');
+            } else if (currentState === STATE.PAUSED) {
+                currentState = STATE.PLAYING;
+                document.getElementById('pauseMenu').classList.add('hidden');
+                document.getElementById('pauseBtn').classList.remove('hidden');
+                gameLoop();
+            }
+        }
+
+        function goToMenu() {
+            if (countdownTimer) clearInterval(countdownTimer);
+            currentState = STATE.MENU;
+            document.getElementById('pauseMenu').classList.add('hidden');
+            document.getElementById('endMenu').classList.add('hidden');
+            document.getElementById('hud').classList.add('hidden');
+            document.getElementById('pauseBtn').classList.add('hidden');
+            document.getElementById('mobileControls').style.display = 'none';
+            document.getElementById('mainMenu').classList.remove('hidden');
+            
+            generateStars();
+            generateTerrain();
+            draw();
+        }
+
+        // --- EVENT LISTENERS ---
+        
+        // Window Resize
+        window.addEventListener('resize', resizeCanvas);
+
+        // Keyboard
+        window.addEventListener('keydown', (e) => {
+            if(keys.hasOwnProperty(e.code)) keys[e.code] = true;
+            if(e.code === 'Escape' || e.code === 'KeyP') {
+                if(currentState === STATE.PLAYING || currentState === STATE.PAUSED) togglePause();
+            }
+        });
+        window.addEventListener('keyup', (e) => {
+            if(keys.hasOwnProperty(e.code)) keys[e.code] = false;
+        });
+
+        // Touch Controls
+        const btnLeft = document.getElementById('btnLeft');
+        const btnRight = document.getElementById('btnRight');
+        const btnThrust = document.getElementById('btnThrust');
+
+        const bindTouch = (el, actionKey) => {
+            el.addEventListener('touchstart', (e) => { e.preventDefault(); touch[actionKey] = true; }, {passive: false});
+            el.addEventListener('touchend', (e) => { e.preventDefault(); touch[actionKey] = false; }, {passive: false});
+            el.addEventListener('touchcancel', (e) => { e.preventDefault(); touch[actionKey] = false; }, {passive: false});
+        };
+
+        bindTouch(btnLeft, 'left');
+        bindTouch(btnRight, 'right');
+        bindTouch(btnThrust, 'thrust');
+
+        // UI Buttons
+        document.querySelectorAll('.diff-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active-diff'));
+                e.target.classList.add('active-diff');
+                currentDiff = e.target.getAttribute('data-diff');
+            });
+        });
+
+        document.getElementById('startBtn').addEventListener('click', () => initGame(true));
+        document.getElementById('pauseBtn').addEventListener('click', togglePause);
+        document.getElementById('resumeBtn').addEventListener('click', togglePause);
+        document.getElementById('restartPauseBtn').addEventListener('click', () => initGame(true));
+        document.getElementById('quitBtn').addEventListener('click', goToMenu);
+        
+        document.getElementById('nextLevelBtn').addEventListener('click', () => initGame(false)); // False = Jangan reset skor
+        document.getElementById('restartEndBtn').addEventListener('click', () => {
+            if(currentState === STATE.SUCCESS) {
+                goToMenu(); // Jika sukses tapi pilih ulangi, kembali ke menu
+            } else {
+                initGame(true); // Jika game over, restart skor 0
+            }
+        });
+
+        // Inisialisasi awal tampilan
+        resizeCanvas();
+
+    </script>
+</body>
+</html>

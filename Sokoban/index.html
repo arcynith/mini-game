@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sokoban Klasik</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* === TEMA DASAR (NEO-BRUTALISM / FLAT RETRO) === */
+        :root {
+            --bg-color: #e2e8f0;
+            --text-main: #0f172a;
+            --border-color: #0f172a;
+            --wall-color: #334155;
+            --floor-color: #f8fafc;
+            --box-color: #d97706;
+            --box-done: #16a34a;
+            --player-color: #3b82f6;
+            --goal-color: #ef4444;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: radial-gradient(#cbd5e1 2px, transparent 2px);
+            background-size: 20px 20px;
+            color: var(--text-main);
+            font-family: 'Courier New', Courier, monospace;
+            touch-action: none;
+            user-select: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* === KOMPONEN TOMBOL === */
+        .btn-klasik {
+            background-color: #f1f5f9;
+            border: 3px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-main);
+            font-weight: bold;
+            padding: 0.75rem 1.5rem;
+            text-transform: uppercase;
+            cursor: pointer;
+            box-shadow: 4px 4px 0px var(--border-color);
+            transition: all 0.1s ease-in-out;
+            font-family: inherit;
+        }
+
+        .btn-klasik:active {
+            box-shadow: 0px 0px 0px var(--border-color);
+            transform: translate(4px, 4px);
+        }
+
+        .btn-klasik-primary { background-color: #3b82f6; color: white; }
+        .btn-klasik-danger { background-color: #ef4444; color: white; }
+        .btn-klasik-success { background-color: #10b981; color: white; }
+
+        /* === AREA GAME === */
+        #game-board {
+            display: grid;
+            background-color: var(--wall-color);
+            border: 6px solid var(--border-color);
+            border-radius: 8px;
+            margin: 0 auto;
+            box-shadow: 10px 10px 0px rgba(15, 23, 42, 0.25);
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Elemen Dasar */
+        .cell {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        /* Dinding - Tekstur Bata */
+        .cell-wall {
+            background-color: var(--wall-color);
+            border: 2px solid #1e293b;
+            position: relative;
+        }
+        .cell-wall::after {
+            content: '';
+            position: absolute;
+            top: 25%; left: 0; right: 0; height: 2px; background: #1e293b;
+        }
+        .cell-wall::before {
+            content: '';
+            position: absolute;
+            bottom: 25%; left: 0; right: 0; height: 2px; background: #1e293b;
+        }
+
+        /* Lantai - Tekstur Ubin Halus */
+        .cell-floor {
+            background-color: var(--floor-color);
+            box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.08);
+        }
+
+        /* Titik Tujuan (Animasi Denyut) */
+        .goal {
+            width: 35%;
+            height: 35%;
+            background-color: transparent;
+            border: 4px solid var(--goal-color);
+            border-radius: 50%;
+            position: absolute;
+            z-index: 5;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.15); opacity: 0.7; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* Kotak Kayu (Crate) */
+        .box {
+            width: 84%;
+            height: 84%;
+            background-color: var(--box-color);
+            border: 3px solid var(--border-color);
+            position: absolute;
+            border-radius: 4px;
+            z-index: 10;
+            box-shadow: inset -3px -3px 0px rgba(0,0,0,0.2), inset 3px 3px 0px rgba(255,255,255,0.2);
+            /* Tekstur Papan Kayu Vertikal */
+            background-image: repeating-linear-gradient(
+                to right,
+                transparent,
+                transparent 8px,
+                rgba(0,0,0,0.15) 8px,
+                rgba(0,0,0,0.15) 10px
+            );
+        }
+        .box::after { /* Garis Paku Menyilang */
+            content: '';
+            position: absolute;
+            width: 100%; height: 3px;
+            background-color: rgba(0,0,0,0.2);
+            transform: rotate(45deg);
+        }
+        .box::before {
+            content: '';
+            position: absolute;
+            width: 100%; height: 3px;
+            background-color: rgba(0,0,0,0.2);
+            transform: rotate(-45deg);
+        }
+
+        /* Kotak Selesai */
+        .box-on-goal {
+            background-color: var(--box-done);
+            border-color: #064e3b;
+        }
+
+        /* Pemain (Robot Bulat) */
+        .player {
+            width: 76%;
+            height: 76%;
+            background-color: var(--player-color);
+            border-radius: 50%;
+            position: absolute;
+            border: 3px solid var(--border-color);
+            z-index: 20;
+            box-shadow: inset -4px -4px 0px rgba(0,0,0,0.3);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .player::after {
+            content: '';
+            width: 50%;
+            height: 35%;
+            background-color: #f8fafc;
+            border-radius: 10px;
+            border: 2px solid var(--border-color);
+            position: absolute;
+            top: 20%;
+        }
+
+        /* === MODAL & OVERLAY === */
+        .overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(4px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 50;
+        }
+
+        .modal {
+            background-color: #f8fafc;
+            border: 5px solid var(--border-color);
+            border-radius: 8px;
+            padding: 2.5rem;
+            text-align: center;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 12px 12px 0px var(--border-color);
+        }
+
+        /* === KONTROL MOBILE (D-PAD) === */
+        .mobile-controls-wrapper {
+            background-color: white;
+            border-top: 4px solid var(--border-color);
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .d-pad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+            width: 160px;
+        }
+
+        .d-pad button {
+            background-color: #cbd5e1;
+            border: 3px solid var(--border-color);
+            border-radius: 6px;
+            height: 48px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5rem;
+            color: var(--text-main);
+            box-shadow: 2px 3px 0px var(--border-color);
+            cursor: pointer;
+        }
+        
+        .d-pad button:active {
+            box-shadow: 0px 0px 0px var(--border-color);
+            transform: translate(2px, 3px);
+            background-color: #94a3b8;
+        }
+        .d-pad .empty { background: transparent; border: none; box-shadow: none; pointer-events: none; }
+        
+        .top-panel {
+            background-color: white;
+            border-bottom: 4px solid var(--border-color);
+            box-shadow: 0px 4px 0px rgba(15, 23, 42, 0.05);
+        }
+
+        .menu-container {
+            background-color: #f8fafc;
+            border: 4px solid var(--border-color);
+            border-radius: 12px;
+            padding: 3rem 2rem;
+            box-shadow: 12px 12px 0px var(--border-color);
+            text-align: center;
+        }
+
+        @media (min-width: 768px) {
+            .mobile-controls-wrapper { display: none; }
+        }
+    </style>
+</head>
+<body class="h-screen w-screen overflow-hidden flex flex-col">
+
+    <!-- LAYAR: MENU UTAMA -->
+    <div id="screen-menu" class="flex-1 flex flex-col justify-center items-center p-4">
+        <div class="menu-container max-w-sm w-full">
+            <h1 class="text-5xl md:text-6xl font-black mb-2 tracking-widest text-slate-800" style="text-shadow: 4px 4px 0px #cbd5e1; -webkit-text-stroke: 1px #0f172a;">SOKOBAN</h1>
+            <p class="mb-10 text-slate-600 font-bold bg-slate-200 inline-block px-3 py-1 border-2 border-slate-800 rounded">EDISI KLASIK</p>
+            
+            <div class="flex flex-col gap-4">
+                <button class="btn-klasik btn-klasik-primary text-xl py-3" onclick="showDifficultyScreen()">► MULAI MAIN</button>
+                <button class="btn-klasik" onclick="showHelp()">? CARA MAIN</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- LAYAR: PILIH KESULITAN -->
+    <div id="screen-difficulty" class="hidden flex-1 flex flex-col justify-center items-center p-4">
+        <div class="menu-container max-w-sm w-full">
+            <h2 class="text-2xl font-black mb-8 border-b-4 border-slate-800 pb-2 inline-block">PILIH TINGKAT</h2>
+            <div class="flex flex-col gap-4">
+                <button class="btn-klasik btn-klasik-success" onclick="startGame('mudah')">Mudah</button>
+                <button class="btn-klasik btn-klasik-primary" onclick="startGame('sedang')">Sedang</button>
+                <button class="btn-klasik btn-klasik-danger" onclick="startGame('sulit')">Sulit</button>
+                <div class="h-4"></div>
+                <button class="btn-klasik" onclick="showMenuScreen()">◄ Kembali</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- LAYAR: GAME -->
+    <div id="screen-game" class="hidden flex-1 flex flex-col h-full w-full max-w-3xl mx-auto">
+        <!-- Header Panel -->
+        <div class="top-panel flex justify-between items-center p-3 md:p-4 z-10 relative">
+            <div class="flex flex-col">
+                <div id="level-info" class="font-black text-xl uppercase text-slate-800">Lvl 1</div>
+                <div class="text-sm font-bold text-slate-500">Langkah: <span id="move-count" class="text-blue-600">0</span></div>
+            </div>
+            <div class="flex gap-2">
+                <button class="btn-klasik px-3 py-2 text-sm" onclick="undoMove()" title="Batal (Z)">↶ UNDO</button>
+                <button class="btn-klasik px-3 py-2 text-sm" onclick="pauseGame()">|| JEDA</button>
+            </div>
+        </div>
+
+        <!-- Area Game Board -->
+        <div class="flex-1 flex justify-center items-center p-4 overflow-auto bg-slate-200" id="board-container">
+            <div id="game-board"></div>
+        </div>
+
+        <!-- Kontrol Mobile -->
+        <div class="mobile-controls-wrapper relative z-10">
+            <button class="btn-klasik px-4 h-12" onclick="restartLevel()">↻ ULANG</button>
+            <div class="d-pad">
+                <div class="empty"></div>
+                <button onclick="movePlayer(0, -1)">▲</button>
+                <div class="empty"></div>
+                <button onclick="movePlayer(-1, 0)">◀</button>
+                <button onclick="movePlayer(0, 1)">▼</button>
+                <button onclick="movePlayer(1, 0)">▶</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- OVERLAY: PAUSE -->
+    <div id="overlay-pause" class="overlay">
+        <div class="modal">
+            <h2 class="text-4xl font-black mb-6 tracking-wide border-b-4 border-slate-800 pb-2">JEDA</h2>
+            <div class="flex flex-col gap-4">
+                <button class="btn-klasik btn-klasik-primary py-3" onclick="resumeGame()">► LANJUTKAN</button>
+                <button class="btn-klasik" onclick="restartLevel(); resumeGame();">↻ ULANGI LEVEL</button>
+                <button class="btn-klasik btn-klasik-danger" onclick="quitToMenu()">✖ KELUAR MENU</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- OVERLAY: LEVEL SELESAI -->
+    <div id="overlay-win" class="overlay">
+        <div class="modal">
+            <h2 class="text-4xl font-black mb-2 text-green-600" style="-webkit-text-stroke: 1px #0f172a;">HEBAT!</h2>
+            <p class="mb-6 font-bold text-lg text-slate-700 bg-slate-200 py-2 border-2 border-slate-800 rounded">
+                Total Langkah: <span id="win-moves" class="text-blue-700 text-xl">0</span>
+            </p>
+            <div class="flex flex-col gap-4">
+                <button id="btn-next-level" class="btn-klasik btn-klasik-primary py-3" onclick="nextLevel()">► LEVEL BERIKUTNYA</button>
+                <button class="btn-klasik" onclick="quitToMenu()">☰ MENU UTAMA</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- OVERLAY: CARA MAIN & INFO -->
+    <div id="overlay-help" class="overlay">
+        <div class="modal">
+            <h2 id="help-title" class="text-3xl font-black mb-4 border-b-4 border-slate-800 pb-2">CARA MAIN</h2>
+            <div id="help-content" class="text-left mb-6 font-bold text-slate-700 bg-slate-200 p-4 border-2 border-slate-800 rounded leading-relaxed text-sm md:text-base">
+                <p class="mb-2">1. Gunakan <b>Panah Keyboard / D-Pad / Swipe</b>.</p>
+                <p class="mb-2">2. Dorong kotak menuju titik tujuan merah (O).</p>
+                <p class="mb-2">3. Kotak hanya bisa didorong, <span class="text-red-600">TIDAK BISA</span> ditarik.</p>
+                <p>4. Gunakan fitur Batal (Undo) jika salah langkah.</p>
+            </div>
+            <button class="btn-klasik btn-klasik-primary w-full py-3" onclick="closeHelp()">✔ MENGERTI</button>
+        </div>
+    </div>
+
+    <script>
+        /* --- DATA LEVEL SOKOBAN KLASIK --- */
+        // Semua level sudah dipadding dengan '#' agar berbentuk blok persegi solid ("ngotak")
+        const levelData = {
+            mudah: [
+                [
+                    "#####",
+                    "#@$.#",
+                    "#####"
+                ],
+                [
+                    "######",
+                    "#    #",
+                    "# @$ #",
+                    "#  . #",
+                    "######"
+                ],
+                [
+                    "######",
+                    "## @ #",
+                    "## $ #",
+                    "#  . #",
+                    "# $ .#",
+                    "######"
+                ]
+            ],
+            sedang: [
+                [
+                    "########",
+                    "###  ###",
+                    "#      #",
+                    "# #  # #",
+                    "# .$@# #",
+                    "########"
+                ],
+                [
+                    "########",
+                    "#   ####",
+                    "#$  ####",
+                    "### ####",
+                    "# $ $ ##",
+                    "# # . ##",
+                    "#@#.  ##",
+                    "########"
+                ]
+            ],
+            sulit: [
+                [
+                    "########",
+                    "###   ##",
+                    "# . $ ##",
+                    "###  ###",
+                    "## $@  #",
+                    "##  .  #",
+                    "########"
+                ],
+                [
+                    "#######",
+                    "#     #",
+                    "# .$. #",
+                    "# $.$ #",
+                    "# .$. #",
+                    "#  @  #",
+                    "#######"
+                ]
+            ]
+        };
+
+        // State Global Game
+        let currentDifficulty = 'mudah';
+        let currentLevelIndex = 0;
+        let mapWidth = 0;
+        let mapHeight = 0;
+        let board = [];
+        let entities = [];
+        let playerPos = { x: 0, y: 0 };
+        let moveCount = 0;
+        let history = [];
+        let isGameActive = false;
+
+        // Referensi DOM
+        const screenMenu = document.getElementById('screen-menu');
+        const screenDifficulty = document.getElementById('screen-difficulty');
+        const screenGame = document.getElementById('screen-game');
+        const overlayPause = document.getElementById('overlay-pause');
+        const overlayWin = document.getElementById('overlay-win');
+        const overlayHelp = document.getElementById('overlay-help');
+        const gameBoardElem = document.getElementById('game-board');
+        const boardContainer = document.getElementById('board-container');
+
+        // --- MANAJEMEN LAYAR ---
+        function hideAllScreens() {
+            screenMenu.classList.add('hidden');
+            screenDifficulty.classList.add('hidden');
+            screenGame.classList.add('hidden');
+            overlayPause.style.display = 'none';
+            overlayWin.style.display = 'none';
+            overlayHelp.style.display = 'none';
+        }
+
+        function showMenuScreen() {
+            hideAllScreens();
+            screenMenu.classList.remove('hidden');
+            isGameActive = false;
+        }
+
+        function showDifficultyScreen() {
+            hideAllScreens();
+            screenDifficulty.classList.remove('hidden');
+        }
+
+        function showHelp() {
+            document.getElementById('help-title').innerText = "CARA MAIN";
+            document.getElementById('help-content').innerHTML = `
+                <p class="mb-2">1. Gunakan <b>Panah Keyboard / D-Pad / Swipe</b>.</p>
+                <p class="mb-2">2. Dorong kotak menuju titik tujuan merah (O).</p>
+                <p class="mb-2">3. Kotak hanya bisa didorong, <span class="text-red-600">TIDAK BISA</span> ditarik.</p>
+                <p>4. Gunakan fitur Batal (Undo) jika salah langkah.</p>
+            `;
+            overlayHelp.style.display = 'flex';
+        }
+
+        function closeHelp() {
+            overlayHelp.style.display = 'none';
+        }
+
+        function startGame(difficulty) {
+            currentDifficulty = difficulty;
+            currentLevelIndex = 0;
+            loadLevel();
+            hideAllScreens();
+            screenGame.classList.remove('hidden');
+            isGameActive = true;
+        }
+
+        function quitToMenu() {
+            showMenuScreen();
+        }
+
+        function pauseGame() {
+            if (!isGameActive) return;
+            overlayPause.style.display = 'flex';
+            isGameActive = false;
+        }
+
+        function resumeGame() {
+            overlayPause.style.display = 'none';
+            isGameActive = true;
+        }
+
+        function nextLevel() {
+            currentLevelIndex++;
+            if (currentLevelIndex >= levelData[currentDifficulty].length) {
+                // Menampilkan ucapan selamat tanpa menggunakan alert()
+                overlayWin.style.display = 'none';
+                document.getElementById('help-title').innerText = "LUAR BIASA!";
+                document.getElementById('help-title').classList.add('text-green-600');
+                document.getElementById('help-content').innerHTML = `
+                    <div class="text-center text-lg py-4">
+                        Kamu telah menyelesaikan <br><b>semua level</b><br> pada kesulitan ini!
+                    </div>
+                `;
+                overlayHelp.style.display = 'flex';
+                showMenuScreen();
+            } else {
+                overlayWin.style.display = 'none';
+                loadLevel();
+                isGameActive = true;
+            }
+        }
+
+        function restartLevel() {
+            loadLevel();
+        }
+
+        // --- LOGIKA GAME SOKOBAN ---
+
+        function loadLevel() {
+            const levelMap = levelData[currentDifficulty][currentLevelIndex];
+            mapHeight = levelMap.length;
+            mapWidth = Math.max(...levelMap.map(row => row.length));
+            
+            board = Array.from({ length: mapHeight }, () => Array(mapWidth).fill(' '));
+            entities = Array.from({ length: mapHeight }, () => Array(mapWidth).fill(null));
+            history = [];
+            moveCount = 0;
+            updateStatsUI();
+
+            for (let y = 0; y < mapHeight; y++) {
+                const row = levelMap[y];
+                for (let x = 0; x < row.length; x++) {
+                    const char = row[x] || ' ';
+                    
+                    if (char === '#' || char === '.' || char === '+' || char === '*') {
+                        board[y][x] = (char === '#' ? '#' : (char === '.' || char === '+' || char === '*' ? '.' : ' '));
+                    }
+                    
+                    if (char === '@' || char === '+') {
+                        entities[y][x] = '@';
+                        playerPos = { x, y };
+                    } else if (char === '$' || char === '*') {
+                        entities[y][x] = '$';
+                    }
+                }
+            }
+            
+            setupBoardUI();
+            renderEntities();
+        }
+
+        function setupBoardUI() {
+            gameBoardElem.innerHTML = '';
+            
+            const containerRect = boardContainer.getBoundingClientRect();
+            const padding = 32;
+            const availableWidth = containerRect.width - padding;
+            const availableHeight = containerRect.height - padding;
+            
+            const maxCellWidth = Math.floor(availableWidth / mapWidth);
+            const maxCellHeight = Math.floor(availableHeight / mapHeight);
+            
+            let cellSize = Math.min(maxCellWidth, maxCellHeight, 64);
+            if (cellSize < 30) cellSize = 30;
+
+            gameBoardElem.style.width = `${cellSize * mapWidth}px`;
+            gameBoardElem.style.height = `${cellSize * mapHeight}px`;
+            gameBoardElem.style.gridTemplateColumns = `repeat(${mapWidth}, ${cellSize}px)`;
+            gameBoardElem.style.gridTemplateRows = `repeat(${mapHeight}, ${cellSize}px)`;
+
+            for (let y = 0; y < mapHeight; y++) {
+                for (let x = 0; x < mapWidth; x++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    
+                    if (board[y][x] === '#') {
+                        cell.classList.add('cell-wall');
+                    } else {
+                        cell.classList.add('cell-floor'); 
+                        if (board[y][x] === '.') {
+                            const goal = document.createElement('div');
+                            goal.className = 'goal';
+                            cell.appendChild(goal);
+                        }
+                    }
+                    
+                    cell.id = `cell-${x}-${y}`;
+                    gameBoardElem.appendChild(cell);
+                }
+            }
+        }
+
+        function renderEntities() {
+            document.querySelectorAll('.box, .player').forEach(el => el.remove());
+
+            for (let y = 0; y < mapHeight; y++) {
+                for (let x = 0; x < mapWidth; x++) {
+                    const cell = document.getElementById(`cell-${x}-${y}`);
+                    if (!cell) continue;
+
+                    if (entities[y][x] === '$') {
+                        const box = document.createElement('div');
+                        box.className = board[y][x] === '.' ? 'box box-on-goal' : 'box';
+                        cell.appendChild(box);
+                    } else if (entities[y][x] === '@') {
+                        const player = document.createElement('div');
+                        player.className = 'player';
+                        cell.appendChild(player);
+                    }
+                }
+            }
+        }
+
+        function saveState() {
+            history.push({
+                entities: entities.map(row => [...row]),
+                playerPos: { ...playerPos },
+                moveCount: moveCount
+            });
+        }
+
+        function undoMove() {
+            if (history.length === 0 || !isGameActive) return;
+            const previousState = history.pop();
+            entities = previousState.entities;
+            playerPos = previousState.playerPos;
+            moveCount = previousState.moveCount;
+            updateStatsUI();
+            renderEntities();
+        }
+
+        function movePlayer(dx, dy) {
+            if (!isGameActive) return;
+
+            const nx = playerPos.x + dx;
+            const ny = playerPos.y + dy;
+
+            if (nx < 0 || ny < 0 || nx >= mapWidth || ny >= mapHeight) return;
+            if (board[ny][nx] === '#') return;
+
+            if (entities[ny][nx] === '$') {
+                const nnx = nx + dx;
+                const nny = ny + dy;
+
+                if (nnx < 0 || nny < 0 || nnx >= mapWidth || nny >= mapHeight) return;
+                if (board[nny][nnx] === '#' || entities[nny][nnx] === '$') return;
+
+                saveState();
+                entities[ny][nx] = null;
+                entities[nny][nnx] = '$';
+                
+                entities[playerPos.y][playerPos.x] = null;
+                entities[ny][nx] = '@';
+                playerPos = { x: nx, y: ny };
+                
+                moveCount++;
+                updateStatsUI();
+                renderEntities();
+                checkWin();
+            } else {
+                saveState();
+                entities[playerPos.y][playerPos.x] = null;
+                entities[ny][nx] = '@';
+                playerPos = { x: nx, y: ny };
+                
+                moveCount++;
+                updateStatsUI();
+                renderEntities();
+            }
+        }
+
+        function updateStatsUI() {
+            document.getElementById('level-info').innerText = `Lvl ${currentLevelIndex + 1} (${currentDifficulty})`;
+            document.getElementById('move-count').innerText = moveCount;
+        }
+
+        function checkWin() {
+            let won = true;
+            for (let y = 0; y < mapHeight; y++) {
+                for (let x = 0; x < mapWidth; x++) {
+                    if (board[y][x] === '.') {
+                        if (entities[y][x] !== '$') {
+                            won = false;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (won) {
+                isGameActive = false;
+                setTimeout(() => {
+                    document.getElementById('win-moves').innerText = moveCount;
+                    overlayWin.style.display = 'flex';
+                }, 250);
+            }
+        }
+
+        // --- KONTROL INPUT ---
+
+        window.addEventListener('keydown', (e) => {
+            if (!isGameActive) return;
+            switch (e.key) {
+                case 'ArrowUp':
+                case 'w': case 'W': movePlayer(0, -1); break;
+                case 'ArrowDown':
+                case 's': case 'S': movePlayer(0, 1); break;
+                case 'ArrowLeft':
+                case 'a': case 'A': movePlayer(-1, 0); break;
+                case 'ArrowRight':
+                case 'd': case 'D': movePlayer(1, 0); break;
+                case 'z': case 'Z': undoMove(); break;
+            }
+        });
+
+        let touchStartX = 0;
+        let touchStartY = 0;
+
+        boardContainer.addEventListener('touchstart', (e) => {
+            if (e.target.closest('.btn-klasik')) return;
+            touchStartX = e.changedTouches[0].screenX;
+            touchStartY = e.changedTouches[0].screenY;
+        }, { passive: false });
+
+        boardContainer.addEventListener('touchmove', (e) => {
+            if (isGameActive && !e.target.closest('.btn-klasik')) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        boardContainer.addEventListener('touchend', (e) => {
+            if (!isGameActive) return;
+
+            const touchEndX = e.changedTouches[0].screenX;
+            const touchEndY = e.changedTouches[0].screenY;
+
+            const dx = touchEndX - touchStartX;
+            const dy = touchEndY - touchStartY;
+            const threshold = 30;
+
+            if (Math.abs(dx) > Math.abs(dy)) {
+                if (Math.abs(dx) > threshold) {
+                    if (dx > 0) movePlayer(1, 0);
+                    else movePlayer(-1, 0);
+                }
+            } else {
+                if (Math.abs(dy) > threshold) {
+                    if (dy > 0) movePlayer(0, 1);
+                    else movePlayer(0, -1);
+                }
+            }
+        }, { passive: false });
+
+        window.addEventListener('resize', () => {
+            if (!screenGame.classList.contains('hidden') && board.length > 0) {
+                setupBoardUI();
+                renderEntities();
+            }
+        });
+
+    </script>
+</body>
+</html>

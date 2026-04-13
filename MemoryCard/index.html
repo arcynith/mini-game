@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Game Kartu Memori</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Desain bersih, tanpa efek glow */
+        :root {
+            --bg-color: #f1f5f9;
+            --primary: #334155;
+            --secondary: #64748b;
+            --accent: #3b82f6;
+            --card-back: #cbd5e1;
+            --card-back-pattern: repeating-linear-gradient(
+                45deg,
+                #94a3b8,
+                #94a3b8 10px,
+                #cbd5e1 10px,
+                #cbd5e1 20px
+            );
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--primary);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            touch-action: manipulation; /* Mencegah zoom saat tap cepat di mobile */
+        }
+
+        /* 3D Flip Animasi untuk Kartu */
+        .memory-card {
+            perspective: 1000px;
+            cursor: pointer;
+            position: relative;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .memory-card-inner {
+            width: 100%;
+            height: 100%;
+            transition: transform 0.5s cubic-bezier(0.4, 0.0, 0.2, 1);
+            transform-style: preserve-3d;
+            position: relative;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            border-radius: 0.5rem;
+        }
+
+        .memory-card.flip .memory-card-inner {
+            transform: rotateY(180deg);
+        }
+
+        .memory-card-front, .memory-card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+            border-radius: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+        }
+
+        /* Front adalah bagian yang ada gambarnya (setelah dibalik) */
+        .memory-card-front {
+            transform: rotateY(180deg);
+            background-color: white;
+            border: 2px solid #e2e8f0;
+        }
+
+        /* Back adalah punggung kartu (sebelum dibalik) */
+        .memory-card-back {
+            background: var(--card-back-pattern);
+            border: 2px solid #94a3b8;
+        }
+
+        .memory-card.matched .memory-card-front {
+            background-color: #dcfce7; /* Hijau pucat saat cocok */
+            border-color: #86efac;
+        }
+
+        /* Tampilan Jeda yang menyembunyikan board */
+        #pause-overlay {
+            backdrop-filter: blur(5px);
+            background-color: rgba(241, 245, 249, 0.9);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <!-- Container Utama -->
+    <div class="w-full max-w-2xl bg-white p-6 rounded-xl shadow-lg border border-slate-200 relative overflow-hidden">
+        
+        <!-- Layar Mulai -->
+        <div id="start-screen" class="text-center py-8">
+            <h1 class="text-3xl md:text-4xl font-bold mb-2 text-slate-800">Kartu Memori</h1>
+            <p class="text-slate-500 mb-8">Cari pasangan kartu yang sama sebelum waktu habis!</p>
+            
+            <h2 class="text-lg font-semibold mb-4 text-slate-700">Pilih Tingkat Kesulitan:</h2>
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <button onclick="startGame('easy')" class="px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium transition-colors border border-slate-300">
+                    Gampang (4x3)<br><span class="text-sm font-normal">60 Detik</span>
+                </button>
+                <button onclick="startGame('medium')" class="px-6 py-3 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg font-medium transition-colors border border-blue-200">
+                    Sedang (4x4)<br><span class="text-sm font-normal">90 Detik</span>
+                </button>
+                <button onclick="startGame('hard')" class="px-6 py-3 bg-slate-800 hover:bg-slate-900 text-white rounded-lg font-medium transition-colors border border-slate-700">
+                    Susah (4x5)<br><span class="text-sm font-normal">120 Detik</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Layar Permainan -->
+        <div id="game-screen" class="hidden">
+            <!-- Header Game (Stats) -->
+            <div class="flex justify-between items-center mb-6 pb-4 border-b border-slate-200">
+                <div class="flex gap-4 sm:gap-8">
+                    <div>
+                        <p class="text-xs text-slate-500 font-semibold uppercase tracking-wider">Waktu</p>
+                        <p id="timer-display" class="text-xl font-bold text-slate-800">00:00</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-500 font-semibold uppercase tracking-wider">Langkah</p>
+                        <p id="moves-display" class="text-xl font-bold text-slate-800">0</p>
+                    </div>
+                </div>
+                <button onclick="togglePause()" id="pause-btn" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded font-medium transition-colors border border-slate-300">
+                    Jeda
+                </button>
+            </div>
+
+            <!-- Area Grid Kartu -->
+            <div id="game-board" class="grid gap-3 mx-auto" style="grid-template-columns: repeat(4, minmax(0, 1fr));">
+                <!-- Kartu akan di-generate oleh JS disini -->
+            </div>
+        </div>
+
+        <!-- Overlay Jeda (Menutupi kartu) -->
+        <div id="pause-overlay" class="hidden absolute inset-0 z-10 flex flex-col items-center justify-center">
+            <h2 class="text-3xl font-bold text-slate-800 mb-6">Permainan Dijeda</h2>
+            <div class="flex gap-4">
+                <button onclick="togglePause()" class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium shadow-sm">Lanjutkan</button>
+                <button onclick="quitGame()" class="px-6 py-3 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-lg font-medium border border-slate-300">Keluar</button>
+            </div>
+        </div>
+
+        <!-- Layar Hasil (Menang/Kalah) -->
+        <div id="result-screen" class="hidden text-center py-8">
+            <h2 id="result-title" class="text-4xl font-bold mb-2"></h2>
+            <p id="result-message" class="text-lg text-slate-600 mb-8"></p>
+            
+            <div class="grid grid-cols-2 gap-4 mb-8 mx-auto w-full max-w-xs text-left">
+                <div class="bg-slate-50 p-3 rounded border border-slate-200">
+                    <p class="text-xs text-slate-500 uppercase">Sisa Waktu</p>
+                    <p id="result-time" class="text-xl font-bold text-slate-800">0s</p>
+                </div>
+                <div class="bg-slate-50 p-3 rounded border border-slate-200">
+                    <p class="text-xs text-slate-500 uppercase">Langkah</p>
+                    <p id="result-moves" class="text-xl font-bold text-slate-800">0</p>
+                </div>
+            </div>
+
+            <button onclick="showStartScreen()" class="px-8 py-3 bg-slate-800 hover:bg-slate-900 text-white rounded-lg font-medium shadow-sm transition-colors">
+                Main Lagi
+            </button>
+        </div>
+
+    </div>
+
+    <script>
+        // Kumpulan Emoji untuk kartu (Flat & tidak AI-ish)
+        const EMOJIS = ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯'];
+        
+        // Konfigurasi Kesulitan
+        const DIFFICULTY_SETTINGS = {
+            easy: { pairs: 6, time: 60, cols: 4, cardHeight: '100px' },
+            medium: { pairs: 8, time: 90, cols: 4, cardHeight: '90px' },
+            hard: { pairs: 10, time: 120, cols: 4, cardHeight: '80px' }
+        };
+
+        // State Permainan
+        let cards = [];
+        let hasFlippedCard = false;
+        let lockBoard = false;
+        let firstCard, secondCard;
+        let matchedPairs = 0;
+        let moves = 0;
+        let timeLeft = 0;
+        let timerInterval;
+        let isPaused = false;
+        let currentSettings = null;
+
+        // Referensi Elemen DOM
+        const startScreen = document.getElementById('start-screen');
+        const gameScreen = document.getElementById('game-screen');
+        const resultScreen = document.getElementById('result-screen');
+        const pauseOverlay = document.getElementById('pause-overlay');
+        const gameBoard = document.getElementById('game-board');
+        const timerDisplay = document.getElementById('timer-display');
+        const movesDisplay = document.getElementById('moves-display');
+        const pauseBtn = document.getElementById('pause-btn');
+
+        // Navigasi Layar
+        function showStartScreen() {
+            startScreen.classList.remove('hidden');
+            gameScreen.classList.add('hidden');
+            resultScreen.classList.add('hidden');
+            pauseOverlay.classList.add('hidden');
+            resetGameState();
+        }
+
+        // Memulai Game
+        function startGame(difficulty) {
+            currentSettings = DIFFICULTY_SETTINGS[difficulty];
+            startScreen.classList.add('hidden');
+            gameScreen.classList.remove('hidden');
+            
+            resetGameState();
+            setupBoard();
+            
+            timeLeft = currentSettings.time;
+            updateTimerDisplay();
+            startTimer();
+        }
+
+        // Mengatur Papan Permainan
+        function setupBoard() {
+            gameBoard.innerHTML = '';
+            // Mengatur kolom CSS grid
+            gameBoard.style.gridTemplateColumns = `repeat(${currentSettings.cols}, minmax(0, 1fr))`;
+
+            // Menyiapkan pasangan kartu
+            let gameEmojis = EMOJIS.slice(0, currentSettings.pairs);
+            let cardDeck = [...gameEmojis, ...gameEmojis]; // Gandakan untuk pasangan
+            
+            // Acak kartu (Fisher-Yates Shuffle)
+            cardDeck.sort(() => Math.random() - 0.5);
+
+            // Membuat elemen kartu
+            cardDeck.forEach((emoji, index) => {
+                const cardElement = document.createElement('div');
+                cardElement.classList.add('memory-card');
+                cardElement.style.height = currentSettings.cardHeight;
+                cardElement.dataset.framework = emoji;
+                
+                cardElement.innerHTML = `
+                    <div class="memory-card-inner">
+                        <div class="memory-card-front">${emoji}</div>
+                        <div class="memory-card-back"></div>
+                    </div>
+                `;
+                
+                cardElement.addEventListener('click', flipCard);
+                gameBoard.appendChild(cardElement);
+            });
+            
+            cards = document.querySelectorAll('.memory-card');
+        }
+
+        // Logika Membalik Kartu
+        function flipCard() {
+            if (isPaused) return; // Tidak bisa klik saat jeda
+            if (lockBoard) return;
+            if (this === firstCard) return;
+
+            this.classList.add('flip');
+
+            if (!hasFlippedCard) {
+                // Klik pertama
+                hasFlippedCard = true;
+                firstCard = this;
+                return;
+            }
+
+            // Klik kedua
+            secondCard = this;
+            moves++;
+            movesDisplay.innerText = moves;
+            checkForMatch();
+        }
+
+        // Mengecek Kecocokan
+        function checkForMatch() {
+            let isMatch = firstCard.dataset.framework === secondCard.dataset.framework;
+
+            if (isMatch) {
+                disableCards();
+            } else {
+                unflipCards();
+            }
+        }
+
+        // Jika Cocok
+        function disableCards() {
+            firstCard.removeEventListener('click', flipCard);
+            secondCard.removeEventListener('click', flipCard);
+            
+            // Tambahkan class penanda (opsional untuk gaya visual flat)
+            firstCard.classList.add('matched');
+            secondCard.classList.add('matched');
+
+            matchedPairs++;
+            resetBoard();
+
+            // Cek Menang
+            if (matchedPairs === currentSettings.pairs) {
+                clearInterval(timerInterval);
+                setTimeout(() => showResult(true), 500);
+            }
+        }
+
+        // Jika Tidak Cocok
+        function unflipCards() {
+            lockBoard = true;
+
+            setTimeout(() => {
+                firstCard.classList.remove('flip');
+                secondCard.classList.remove('flip');
+                resetBoard();
+            }, 1000); // Tunggu 1 detik sebelum balik lagi
+        }
+
+        // Reset state variabel untuk giliran berikutnya
+        function resetBoard() {
+            [hasFlippedCard, lockBoard] = [false, false];
+            [firstCard, secondCard] = [null, null];
+        }
+
+        // Mengatur Waktu / Timer
+        function startTimer() {
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                if (!isPaused) {
+                    timeLeft--;
+                    updateTimerDisplay();
+
+                    if (timeLeft <= 0) {
+                        clearInterval(timerInterval);
+                        lockBoard = true;
+                        showResult(false);
+                    }
+                }
+            }, 1000);
+        }
+
+        function updateTimerDisplay() {
+            let minutes = Math.floor(timeLeft / 60);
+            let seconds = timeLeft % 60;
+            timerDisplay.innerText = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            if (timeLeft <= 10 && timeLeft > 0) {
+                timerDisplay.classList.add('text-red-600');
+            } else {
+                timerDisplay.classList.remove('text-red-600');
+            }
+        }
+
+        // Sistem Jeda
+        function togglePause() {
+            isPaused = !isPaused;
+            if (isPaused) {
+                pauseOverlay.classList.remove('hidden');
+                pauseBtn.innerText = "Lanjut";
+            } else {
+                pauseOverlay.classList.add('hidden');
+                pauseBtn.innerText = "Jeda";
+            }
+        }
+
+        // Keluar ke menu utama saat dijeda
+        function quitGame() {
+            clearInterval(timerInterval);
+            showStartScreen();
+        }
+
+        // Layar Hasil Akhir
+        function showResult(isWin) {
+            gameScreen.classList.add('hidden');
+            resultScreen.classList.remove('hidden');
+            
+            const titleEl = document.getElementById('result-title');
+            const msgEl = document.getElementById('result-message');
+            
+            document.getElementById('result-time').innerText = `${timeLeft} Detik`;
+            document.getElementById('result-moves').innerText = moves;
+
+            if (isWin) {
+                titleEl.innerText = "Luar Biasa!";
+                titleEl.className = "text-4xl font-bold mb-2 text-green-600";
+                msgEl.innerText = "Anda berhasil menemukan semua pasangan.";
+            } else {
+                titleEl.innerText = "Waktu Habis!";
+                titleEl.className = "text-4xl font-bold mb-2 text-red-600";
+                msgEl.innerText = "Sayang sekali, Anda belum menyelesaikan permainan.";
+            }
+        }
+
+        // Reset semua state ke 0
+        function resetGameState() {
+            matchedPairs = 0;
+            moves = 0;
+            isPaused = false;
+            clearInterval(timerInterval);
+            movesDisplay.innerText = '0';
+            timerDisplay.classList.remove('text-red-600');
+            pauseBtn.innerText = "Jeda";
+            resetBoard();
+        }
+
+    </script>
+</body>
+</html>
